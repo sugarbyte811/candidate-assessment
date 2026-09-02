@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Behavioral Profile Assessment — Palm Beach Placements</title>
+  <title>Behavioral Profile Assessment - Palm Beach Placements</title>
   <style>
     /* ===== DESIGN TOKENS ===== */
     :root {
@@ -306,6 +306,7 @@
       gap: 10px;
     }
     @media (max-width: 480px) { .form-geo-row { grid-template-columns: 1fr; } }
+    @media (max-width: 480px) { .birth-name-grid { grid-template-columns: 1fr !important; } }
     .form-consent {
       background: var(--gold-pale);
       border-radius: 12px;
@@ -800,9 +801,9 @@ const STRENGTH_MAP = {
   thinking:          { title: "Objective Decision-Maker",   desc: "Evaluates situations with clarity and stays clear-headed when stakes are high. Separates data from emotion to reach logical, defensible conclusions." },
   judging:           { title: "Organized Executor",         desc: "Creates structure that others can rely on and follows through reliably on plans. Brings predictability and discipline to complex, multi-step work." },
   dominance:         { title: "Results Driver",             desc: "Takes ownership of outcomes and pushes through obstacles without losing momentum. Thrives when given a clear goal and the authority to pursue it." },
-  influence:         { title: "Persuasive Communicator",    desc: "Moves people through ideas, enthusiasm, and natural storytelling. Builds buy-in without forcing it—others follow because they're inspired, not directed." },
+  influence:         { title: "Persuasive Communicator",    desc: "Moves people through ideas, enthusiasm, and natural storytelling. Builds buy-in without forcing it; others follow because they're inspired, not directed." },
   steadiness:        { title: "Dependable Anchor",          desc: "Brings calm consistency that teams count on through uncertainty and change. Earns trust not by being loud, but by always showing up." },
-  conscientiousness: { title: "Quality Champion",           desc: "Sets high standards, catches what others miss, and takes pride in accuracy. Work produced meets or exceeds expectations—reliably." },
+  conscientiousness: { title: "Quality Champion",           desc: "Sets high standards, catches what others miss, and takes pride in accuracy. Work produced meets or exceeds expectations, reliably." },
   independence:      { title: "Self-Directed",              desc: "Works effectively with autonomy and takes initiative without needing constant direction. Trusted to own a problem and bring it to resolution." },
   riskTolerance:     { title: "Bold Decision-Maker",        desc: "Comfortable moving forward with incomplete information and calculated risk. Doesn't let uncertainty become paralysis." },
   decisionSpeed:     { title: "Decisive Under Pressure",    desc: "Moves quickly when clarity is needed and doesn't get stuck weighing options. Brings momentum when a team or situation needs it most." },
@@ -822,17 +823,17 @@ const DISC_BLINDSPOTS = {
   I: [
     { title: "Detail Follow-Through",          when: "Most visible when a project moves from high-energy launch into steady execution.",           tip: "Pair your strengths in starting with a simple tracking system to close loops." },
     { title: "Objectivity Under Enthusiasm",   when: "Can emerge when excitement about an idea clouds risk assessment.",                           tip: "Before committing to a new direction, ask: 'What would have to be true for this to fail?'" },
-    { title: "Consistency Across Commitments", when: "Most apparent when multiple priorities compete for attention simultaneously.",               tip: "Keep a short list of active commitments visible — it's easier to stay accountable when it's written down." },
+    { title: "Consistency Across Commitments", when: "Most apparent when multiple priorities compete for attention simultaneously.",               tip: "Keep a short list of active commitments visible - it's easier to stay accountable when it's written down." },
   ],
   S: [
     { title: "Speed and Directness",        when: "Most visible when situations call for fast decisions or clear confrontation.",                   tip: "Practice stating your position early rather than waiting for others to reach the same conclusion." },
-    { title: "Comfort with Conflict",       when: "Can surface when feedback or disagreement needs to be expressed directly.",                     tip: "Reframe conflict as clarifying — a well-placed honest conversation often prevents larger issues later." },
+    { title: "Comfort with Conflict",       when: "Can surface when feedback or disagreement needs to be expressed directly.",                     tip: "Reframe conflict as clarifying - a well-placed honest conversation often prevents larger issues later." },
     { title: "Initiative Under Ambiguity",  when: "Most apparent when there is no clear roadmap and action is required before conditions are ideal.", tip: "Give yourself permission to move before everything is settled." },
   ],
   C: [
     { title: "Speed of Decision-Making",              when: "Most visible when deadlines require moving forward before all details are confirmed.", tip: "Define upfront what information is 'enough' to make a decision." },
     { title: "Flexibility When Standards Aren't Met", when: "Can surface when others work in ways that feel less rigorous.",                       tip: "Choose which standards are truly non-negotiable, and let the rest flex with context." },
-    { title: "Sharing Work Before It's Perfect",      when: "Most apparent in collaborative settings where early drafts are valuable to others.",  tip: "Think of early outputs as 'version 1' — feedback at that stage often improves the outcome." },
+    { title: "Sharing Work Before It's Perfect",      when: "Most apparent in collaborative settings where early drafts are valuable to others.",  tip: "Think of early outputs as 'version 1' - feedback at that stage often improves the outcome." },
   ],
 };
 
@@ -997,9 +998,13 @@ function showPersonal() {
               <div class="form-hint">Used to calculate your numerology profile and optional astrological context.</div>
             </div>
             <div class="form-field full-width">
-              <label class="form-label" for="f-bn">Full Birth Name <span class="opt-tag">(optional)</span></label>
-              <input class="form-input" type="text" id="f-bn" value="${esc(fd.birthName||'')}" placeholder="Full name on birth certificate">
-              <div class="form-hint">Your full name as it appears on your birth certificate. Used for name-based numerology insights.</div>
+              <label class="form-label">Name on Birth Certificate <span class="opt-tag">(optional - used for numerology insights)</span></label>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;" class="birth-name-grid">
+                <input class="form-input" type="text" id="f-bn-first" value="${esc(fd.birthNameFirst||'')}" placeholder="First">
+                <input class="form-input" type="text" id="f-bn-middle" value="${esc(fd.birthNameMiddle||'')}" placeholder="Middle">
+                <input class="form-input" type="text" id="f-bn-last" value="${esc(fd.birthNameLast||'')}" placeholder="Last">
+              </div>
+              <div class="form-hint">Enter your full name exactly as it appears on your birth certificate.</div>
             </div>
             <div class="form-field full-width">
               <label class="form-label">Birthplace <span class="opt-tag">(optional)</span></label>
@@ -1046,7 +1051,10 @@ function showPersonal() {
     const ln      = document.getElementById('f-ln').value.trim();
     const em      = document.getElementById('f-em').value.trim();
     const bd      = document.getElementById('f-bd').value;
-    const bn      = document.getElementById('f-bn').value.trim();
+    const bnFirst  = document.getElementById('f-bn-first').value.trim();
+    const bnMiddle = document.getElementById('f-bn-middle').value.trim();
+    const bnLast   = document.getElementById('f-bn-last').value.trim();
+    const bn       = [bnFirst, bnMiddle, bnLast].filter(Boolean).join(' ') || null;
     const country = countryEl.value;
     const city    = document.getElementById('f-city').value.trim();
     const consent = document.getElementById('f-consent').checked;
@@ -1056,7 +1064,7 @@ function showPersonal() {
     if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { err.textContent = 'A valid email is required.'; return; }
     if (!consent)                                   { err.textContent = 'Please accept the consent statement to continue.'; return; }
 
-    STATE.formData = { firstName: fn, lastName: ln, email: em, birthday: bd, birthName: bn, country, city, consent };
+    STATE.formData = { firstName: fn, lastName: ln, email: em, birthday: bd, birthName: bn, birthNameFirst: bnFirst, birthNameMiddle: bnMiddle, birthNameLast: bnLast, country, city, consent };
     showSectionTransition(0);
   };
 }
@@ -1120,7 +1128,7 @@ function showQuestion() {
           <div class="scale-row" id="scale-row">
             ${[1,2,3,4,5].map((v) => `
               <div class="scale-item">
-                <button class="scale-btn${curAns === v ? ' selected' : ''}" data-val="${v}" aria-label="${v} — ${SCALE_LABELS[v-1].replace('\n',' ')}">
+                <button class="scale-btn${curAns === v ? ' selected' : ''}" data-val="${v}" aria-label="${v} - ${SCALE_LABELS[v-1].replace('\n',' ')}">
                   <span class="scale-num">${v}</span>
                 </button>
                 <div class="scale-item-label">${esc(SCALE_LABELS[v-1]).replace('\n','<br>')}</div>

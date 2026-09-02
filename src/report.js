@@ -1,4 +1,4 @@
-// Phase 5 — Report generator. Produces the 5-page report structure.
+// Phase 5 - Report generator. Produces the 5-page report structure.
 //
 // COST DESIGN:
 //   - ~80% of the report is deterministic/templated text built here from the
@@ -93,7 +93,7 @@ const ENVIRONMENT_FIT = {
 };
 
 // Produce ~3 sentences of BEHAVIORAL description from the astrology data,
-// naming no planets or signs — just how the person is likely to behave.
+// naming no planets or signs, just how the person is likely to behave.
 // All phrasing uses "they" for consistent grammar.
 function astrologyBehaviorSentences(ast) {
   if (!ast || !ast.available) return "Astrology information was not provided.";
