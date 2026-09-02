@@ -1,0 +1,22 @@
+{
+  "name": "candidate-assessment",
+  "version": "1.0.0",
+  "description": "Low-cost integrated candidate assessment (behavioral + numerology + astrology). Deterministic-first, one AI call for narrative.",
+  "main": "src/pipeline.js",
+  "scripts": {
+    "test": "for f in test/phase*.test.js; do node \"$f\" || exit 1; done",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "pdfkit": "^0.15.2"
+  },
+  "optionalDependencies": {
+    "firebase-admin": "^12.0.0",
+    "nodemailer": "^6.9.0"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,1490 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Behavioral Profile Assessment — Palm Beach Placements</title>
+  <style>
+    /* ===== DESIGN TOKENS ===== */
+    :root {
+      --navy:     #0F2744;
+      --gold:     #C5A95A;
+      --gold-pale:#F5EDD8;
+      --sage:     #8B9E7A;
+      --bg:       #FAFAF7;
+      --white:    #FFFFFF;
+      --ink:      #1A1A2E;
+      --body:     #2C2C2C;
+      --muted:    #6B7280;
+      --border:   #E8E4DA;
+      --radius:   16px;
+      --serif:    Georgia, "Times New Roman", serif;
+      --sans:     system-ui, -apple-system, sans-serif;
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; width: 100%; }
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--body);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: var(--sans); cursor: pointer; border: none; background: none; }
+    input, select, textarea { font-family: var(--sans); }
+    a { color: inherit; }
+
+    /* ===== FULL-SCREEN (navy) ===== */
+    .screen-full {
+      min-height: 100vh;
+      background: var(--navy);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px;
+    }
+    .screen-full .inner {
+      max-width: 600px;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* ===== SCROLLABLE CONTENT SCREEN ===== */
+    .screen-content {
+      min-height: 100vh;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== STICKY HEADER ===== */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+    .sticky-header-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 14px 20px 0;
+    }
+    .sticky-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .brand-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .header-meta {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .progress-bar-wrap {
+      height: 3px;
+      background: var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--gold);
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
+    /* ===== CONTENT WRAP ===== */
+    .content-wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 72px;
+      width: 100%;
+      flex: 1;
+    }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 24px rgba(15, 39, 68, 0.08);
+      padding: 36px;
+    }
+    @media (max-width: 520px) { .card { padding: 24px 20px; } }
+
+    /* ===== BUTTONS ===== */
+    .btn-gold {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--gold);
+      color: var(--navy);
+      font-weight: 700;
+      font-size: 16px;
+      padding: 16px 40px;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: opacity .15s, transform .15s;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-gold:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); }
+    .btn-gold:active:not(:disabled) { transform: translateY(0); }
+    .btn-gold:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-navy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--navy);
+      color: var(--white);
+      font-weight: 700;
+      font-size: 16px;
+      padding: 16px 36px;
+      border-radius: 999px;
+      text-decoration: none;
+      transition: opacity .15s, transform .15s;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-navy:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+    .btn-navy:active:not(:disabled) { transform: translateY(0); }
+    .btn-navy:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 15px;
+      padding: 12px 22px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border);
+      transition: border-color .15s, color .15s;
+      cursor: pointer;
+    }
+    .btn-ghost:hover { border-color: var(--navy); color: var(--navy); }
+
+    /* ===== INTRO ===== */
+    .intro-brand {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.2px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+    .intro-headline {
+      font-family: var(--serif);
+      font-size: clamp(28px, 6vw, 44px);
+      color: var(--white);
+      margin-bottom: 22px;
+      line-height: 1.2;
+    }
+    .intro-desc {
+      font-size: 17px;
+      color: rgba(255,255,255,.72);
+      margin-bottom: 28px;
+      line-height: 1.75;
+    }
+    .intro-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin-bottom: 44px;
+    }
+    .intro-meta-item {
+      font-size: 13px;
+      color: rgba(255,255,255,.5);
+      padding: 0 14px;
+    }
+    .intro-meta-item + .intro-meta-item {
+      border-left: 1px solid rgba(255,255,255,.18);
+    }
+    .intro-receives {
+      text-align: left;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(197,169,90,.22);
+      border-radius: 14px;
+      padding: 26px 28px;
+      margin-bottom: 44px;
+    }
+    .intro-receives-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .intro-receives-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .intro-receives-list li {
+      font-size: 15px;
+      color: rgba(255,255,255,.78);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      line-height: 1.5;
+    }
+    .intro-receives-list li::before {
+      content: '✦';
+      color: var(--gold);
+      font-size: 9px;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    /* ===== FORM ===== */
+    .form-title {
+      font-family: var(--serif);
+      font-size: 28px;
+      color: var(--navy);
+      margin-bottom: 8px;
+    }
+    .form-subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .form-grid .full-width { grid-column: 1 / -1; }
+    @media (max-width: 560px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .full-width { grid-column: 1; }
+    }
+    .form-field { display: flex; flex-direction: column; gap: 6px; }
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: .2px;
+    }
+    .req-mark { color: var(--gold); margin-left: 2px; font-size: 12px; }
+    .opt-tag { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 4px; }
+    .form-input {
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      color: var(--ink);
+      background: var(--white);
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+      width: 100%;
+    }
+    .form-input:focus {
+      border-color: var(--navy);
+      box-shadow: 0 0 0 3px rgba(15,39,68,.1);
+    }
+    .form-hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
+    .form-geo-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 480px) { .form-geo-row { grid-template-columns: 1fr; } }
+    .form-consent {
+      background: var(--gold-pale);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      cursor: pointer;
+      margin-top: 24px;
+    }
+    .form-consent input[type="checkbox"] {
+      width: 18px; height: 18px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      accent-color: var(--navy);
+      cursor: pointer;
+    }
+    .form-consent-text { font-size: 13px; color: var(--body); line-height: 1.6; }
+    .form-privacy {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.55;
+      margin-top: 14px;
+    }
+    .form-actions {
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+    }
+    .form-error {
+      color: #b91c1c;
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* ===== SECTION TRANSITION ===== */
+    .transition-num {
+      font-family: var(--serif);
+      font-size: clamp(88px, 22vw, 160px);
+      color: rgba(255,255,255,.04);
+      line-height: 1;
+      margin-bottom: -16px;
+      user-select: none;
+    }
+    .transition-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2.2px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .transition-name {
+      font-family: var(--serif);
+      font-size: clamp(24px, 5vw, 36px);
+      color: var(--white);
+      margin-bottom: 18px;
+      line-height: 1.3;
+    }
+    .transition-desc {
+      font-size: 16px;
+      color: rgba(255,255,255,.56);
+      margin-bottom: 44px;
+      line-height: 1.75;
+    }
+
+    /* ===== QUESTION ===== */
+    .question-section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .question-text {
+      font-family: var(--serif);
+      font-size: 20px;
+      color: var(--navy);
+      line-height: 1.55;
+      margin-bottom: 36px;
+    }
+    /* Scale */
+    .scale-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .scale-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 80px;
+    }
+    .scale-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      flex-shrink: 0;
+    }
+    .scale-btn:hover { border-color: var(--navy); }
+    .scale-btn.selected {
+      background: var(--navy);
+      border-color: var(--navy);
+    }
+    .scale-num {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1;
+    }
+    .scale-btn.selected .scale-num { color: var(--white); }
+    .scale-item-label {
+      font-size: 10px;
+      text-align: center;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+    @media (max-width: 480px) {
+      .scale-btn  { width: 46px; height: 46px; }
+      .scale-num  { font-size: 16px; }
+      .scale-item-label { display: none; }
+    }
+    .scale-legend-mobile {
+      display: none;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+    @media (max-width: 480px) { .scale-legend-mobile { display: block; } }
+    .question-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    /* fade on card transition */
+    .card-fade { transition: opacity .22s ease; }
+    .card-fade.fading { opacity: 0; }
+
+    /* ===== PROCESSING ===== */
+    .spinner-ring {
+      width: 58px;
+      height: 58px;
+      border: 3px solid rgba(197,169,90,.28);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+      margin: 0 auto 32px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-headline {
+      font-family: var(--serif);
+      font-size: 26px;
+      color: var(--white);
+      margin-bottom: 16px;
+    }
+    .processing-msg {
+      font-size: 15px;
+      color: rgba(255,255,255,.5);
+      transition: opacity .35s;
+      min-height: 1.6em;
+    }
+
+    /* ===== RESULTS ===== */
+    #results-container { background: var(--bg); }
+
+    /* Profile header */
+    .results-header {
+      background: var(--navy);
+      padding: 60px 24px 52px;
+      text-align: center;
+    }
+    .results-header-inner { max-width: 680px; margin: 0 auto; }
+    .results-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    .results-name {
+      font-family: var(--serif);
+      font-size: clamp(28px, 5.5vw, 44px);
+      color: var(--white);
+      margin-bottom: 14px;
+    }
+    .results-archetype {
+      font-family: var(--serif);
+      font-size: 22px;
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+    .results-tagline {
+      font-size: 16px;
+      color: rgba(255,255,255,.6);
+      font-style: italic;
+      margin-bottom: 14px;
+    }
+    .results-date { font-size: 12px; color: rgba(255,255,255,.32); margin-bottom: 36px; }
+    .results-header-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .email-note { font-size: 13px; color: rgba(255,255,255,.4); }
+
+    /* Sections */
+    .results-section {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 24px;
+    }
+    .section-title {
+      font-family: var(--serif);
+      font-size: 22px;
+      color: var(--navy);
+      margin-bottom: 26px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--gold-pale);
+    }
+    .section-bg-white {
+      background: var(--white);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* At-a-Glance */
+    .glance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+    }
+    .glance-card {
+      background: var(--bg);
+      border-radius: 10px;
+      border-top: 3px solid var(--gold);
+      padding: 16px 18px;
+    }
+    .section-bg-white .glance-card { background: var(--bg); }
+    .glance-card-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .glance-card-value { font-size: 14px; color: var(--ink); line-height: 1.45; }
+
+    /* Spectrum bars */
+    .spectrum-list { display: flex; flex-direction: column; gap: 22px; }
+    .spectrum-row {
+      display: grid;
+      grid-template-columns: 90px 1fr 90px;
+      align-items: center;
+      gap: 16px;
+    }
+    @media (max-width: 540px) {
+      .spectrum-row { grid-template-columns: 64px 1fr 64px; gap: 8px; }
+    }
+    .spectrum-pole { font-size: 13px; color: var(--muted); }
+    .spectrum-pole.right { text-align: right; }
+    .spectrum-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 999px;
+      position: relative;
+    }
+    .spectrum-dot {
+      width: 14px;
+      height: 14px;
+      background: var(--navy);
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border: 2.5px solid var(--white);
+      box-shadow: 0 1px 5px rgba(15,39,68,.28);
+    }
+
+    /* Prose card */
+    .prose-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      font-size: 16px;
+      line-height: 1.8;
+      color: var(--body);
+      box-shadow: 0 1px 10px rgba(15,39,68,.05);
+    }
+
+    /* Pattern */
+    .pattern-grid { display: flex; flex-direction: column; gap: 16px; }
+    .pattern-item {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 1px 8px rgba(15,39,68,.05);
+    }
+    .pattern-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .pattern-text { font-size: 15px; color: var(--body); line-height: 1.7; }
+
+    /* Strengths */
+    .strength-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 560px) { .strength-grid { grid-template-columns: 1fr; } }
+    .strength-card {
+      background: var(--white);
+      border-radius: 12px;
+      border-left: 4px solid var(--gold);
+      padding: 20px 22px;
+      box-shadow: 0 1px 8px rgba(15,39,68,.05);
+    }
+    .section-bg-white .strength-card { background: var(--bg); }
+    .strength-title { font-weight: 700; font-size: 15px; color: var(--navy); margin-bottom: 8px; }
+    .strength-desc { font-size: 14px; color: var(--body); line-height: 1.65; }
+
+    /* Blind spots */
+    .blindspot-list { display: flex; flex-direction: column; gap: 20px; }
+    .blindspot-card {
+      background: var(--white);
+      border-radius: 12px;
+      border-left: 4px solid var(--sage);
+      padding: 22px 26px;
+      box-shadow: 0 1px 8px rgba(15,39,68,.05);
+    }
+    .blindspot-title { font-weight: 700; font-size: 15px; color: var(--navy); margin-bottom: 12px; }
+    .blindspot-when-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .blindspot-when {
+      display: inline-block;
+      font-size: 13px;
+      color: var(--muted);
+      background: var(--bg);
+      border-radius: 999px;
+      padding: 5px 14px;
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .blindspot-tip { font-size: 14px; color: var(--body); line-height: 1.65; }
+
+    /* Work-with */
+    .workwith-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 560px) { .workwith-grid { grid-template-columns: 1fr; } }
+    .workwith-card {
+      border-radius: 12px;
+      padding: 20px 22px;
+      box-shadow: 0 1px 8px rgba(15,39,68,.05);
+    }
+    .section-bg-white .workwith-card { background: var(--bg); }
+    .workwith-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    .workwith-text { font-size: 14px; color: var(--body); line-height: 1.7; }
+
+    /* Interview */
+    .interview-quote {
+      background: var(--white);
+      border-radius: var(--radius);
+      border-left: 4px solid var(--navy);
+      padding: 24px 28px;
+      font-size: 15px;
+      color: var(--body);
+      line-height: 1.8;
+      font-style: italic;
+      box-shadow: 0 1px 8px rgba(15,39,68,.05);
+    }
+
+    /* Personal Insight Layer */
+    .insight-card {
+      background: var(--navy);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+    }
+    .insight-badge {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-bottom: 26px;
+    }
+    .insight-row { margin-bottom: 22px; }
+    .insight-row:last-of-type { margin-bottom: 0; }
+    .insight-row-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: rgba(197,169,90,.7);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .insight-row-text { font-size: 14px; color: rgba(255,255,255,.72); line-height: 1.7; }
+    .insight-disclaimer {
+      font-size: 12px;
+      color: rgba(255,255,255,.3);
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      font-style: italic;
+    }
+
+    /* Disclaimer */
+    .results-disclaimer {
+      text-align: center;
+      padding: 36px 24px 68px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.75;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// =====================================================
+// CONSTANTS
+// =====================================================
+
+const SECTIONS = [
+  { name: "Natural Personality",               desc: "How you're wired: your energy, focus, and natural orientation.",   range: [0, 3]  },
+  { name: "Communication & Decision-Making",   desc: "How you process information and reach conclusions.",               range: [4, 7]  },
+  { name: "Motivation & Work Style",           desc: "What drives you and how you bring energy to your work.",           range: [8, 11] },
+  { name: "Leadership & Collaboration",        desc: "How you lead, follow, and show up on a team.",                     range: [12, 16]},
+];
+
+const TAGLINES = {
+  D: "Driven by results. Wired for ownership.",
+  I: "Energized by people. Built for influence.",
+  S: "Grounded in consistency. Trusted through follow-through.",
+  C: "Committed to quality. Powered by precision.",
+};
+
+const DISC_NAMES = {
+  D: "Dominance",
+  I: "Influence",
+  S: "Steadiness",
+  C: "Conscientiousness",
+};
+
+const STRENGTH_MAP = {
+  extraversion:      { title: "Natural Connector",          desc: "Draws energy from interaction and builds rapport quickly in new environments. Brings warmth and openness that makes others feel at ease." },
+  intuition:         { title: "Strategic Thinker",          desc: "Sees patterns and possibilities others miss, and connects current work to long-term potential. Thinks beyond the immediate and brings forward-looking perspective." },
+  thinking:          { title: "Objective Decision-Maker",   desc: "Evaluates situations with clarity and stays clear-headed when stakes are high. Separates data from emotion to reach logical, defensible conclusions." },
+  judging:           { title: "Organized Executor",         desc: "Creates structure that others can rely on and follows through reliably on plans. Brings predictability and discipline to complex, multi-step work." },
+  dominance:         { title: "Results Driver",             desc: "Takes ownership of outcomes and pushes through obstacles without losing momentum. Thrives when given a clear goal and the authority to pursue it." },
+  influence:         { title: "Persuasive Communicator",    desc: "Moves people through ideas, enthusiasm, and natural storytelling. Builds buy-in without forcing it—others follow because they're inspired, not directed." },
+  steadiness:        { title: "Dependable Anchor",          desc: "Brings calm consistency that teams count on through uncertainty and change. Earns trust not by being loud, but by always showing up." },
+  conscientiousness: { title: "Quality Champion",           desc: "Sets high standards, catches what others miss, and takes pride in accuracy. Work produced meets or exceeds expectations—reliably." },
+  independence:      { title: "Self-Directed",              desc: "Works effectively with autonomy and takes initiative without needing constant direction. Trusted to own a problem and bring it to resolution." },
+  riskTolerance:     { title: "Bold Decision-Maker",        desc: "Comfortable moving forward with incomplete information and calculated risk. Doesn't let uncertainty become paralysis." },
+  decisionSpeed:     { title: "Decisive Under Pressure",    desc: "Moves quickly when clarity is needed and doesn't get stuck weighing options. Brings momentum when a team or situation needs it most." },
+  needForRules:      { title: "Process-Oriented",           desc: "Works well within defined systems and brings consistency to operations. Dependable in roles where compliance and procedure matter." },
+  adaptability:      { title: "Adaptive",                   desc: "Pivots gracefully when circumstances change and stays productive in fluid situations. Resilient when others struggle with transition." },
+  workPace:          { title: "High-Energy Executor",       desc: "Thrives at a fast pace and sustains intensity through demanding workloads. Built for environments where urgency is the norm." },
+  socialDrive:       { title: "Team Energizer",             desc: "Brings enthusiasm and warmth that raises group morale and collective energy. A natural relationship-builder across teams and roles." },
+  leadership:        { title: "Natural Leader",             desc: "Assumes responsibility when it matters and inspires confidence in others. Leadership style is visible not just in title, but in action." },
+};
+
+const DISC_BLINDSPOTS = {
+  D: [
+    { title: "Patience with Process",       when: "Most visible when projects require stakeholder buy-in or move slower than preferred.",          tip: "Before pushing for speed, ask: 'What would it cost to bring everyone along?'" },
+    { title: "Listening Before Deciding",   when: "Can surface in fast-moving conversations where conclusions feel obvious.",                      tip: "Build in one deliberate pause per key meeting to invite input before offering your own position." },
+    { title: "Diplomatic Delivery",         when: "Most apparent under pressure, when directness lands harder than intended.",                     tip: "Add one sentence of context before delivering critical feedback: 'Here's what I'm seeing, and why it matters.'" },
+  ],
+  I: [
+    { title: "Detail Follow-Through",          when: "Most visible when a project moves from high-energy launch into steady execution.",           tip: "Pair your strengths in starting with a simple tracking system to close loops." },
+    { title: "Objectivity Under Enthusiasm",   when: "Can emerge when excitement about an idea clouds risk assessment.",                           tip: "Before committing to a new direction, ask: 'What would have to be true for this to fail?'" },
+    { title: "Consistency Across Commitments", when: "Most apparent when multiple priorities compete for attention simultaneously.",               tip: "Keep a short list of active commitments visible — it's easier to stay accountable when it's written down." },
+  ],
+  S: [
+    { title: "Speed and Directness",        when: "Most visible when situations call for fast decisions or clear confrontation.",                   tip: "Practice stating your position early rather than waiting for others to reach the same conclusion." },
+    { title: "Comfort with Conflict",       when: "Can surface when feedback or disagreement needs to be expressed directly.",                     tip: "Reframe conflict as clarifying — a well-placed honest conversation often prevents larger issues later." },
+    { title: "Initiative Under Ambiguity",  when: "Most apparent when there is no clear roadmap and action is required before conditions are ideal.", tip: "Give yourself permission to move before everything is settled." },
+  ],
+  C: [
+    { title: "Speed of Decision-Making",              when: "Most visible when deadlines require moving forward before all details are confirmed.", tip: "Define upfront what information is 'enough' to make a decision." },
+    { title: "Flexibility When Standards Aren't Met", when: "Can surface when others work in ways that feel less rigorous.",                       tip: "Choose which standards are truly non-negotiable, and let the rest flex with context." },
+    { title: "Sharing Work Before It's Perfect",      when: "Most apparent in collaborative settings where early drafts are valuable to others.",  tip: "Think of early outputs as 'version 1' — feedback at that stage often improves the outcome." },
+  ],
+};
+
+const SPECTRUM_DEFS = [
+  { trait: "extraversion", lo: "Introverted", hi: "Extraverted" },
+  { trait: "intuition",    lo: "Practical",   hi: "Visionary"   },
+  { trait: "thinking",     lo: "People-led",  hi: "Logic-led"   },
+  { trait: "judging",      lo: "Flexible",    hi: "Structured"  },
+  { trait: "influence",    lo: "Reserved",    hi: "Persuasive"  },
+  { trait: "workPace",     lo: "Patient",     hi: "Fast-paced"  },
+];
+
+const SCALE_LABELS = ["Strongly\nDisagree", "Disagree", "Neutral", "Agree", "Strongly\nAgree"];
+
+const PROCESSING_MSGS = [
+  "Analyzing your natural behavioral patterns…",
+  "Identifying your communication and leadership style…",
+  "Mapping your decision-making approach…",
+  "Building your personalized profile…",
+  "Preparing your report…",
+];
+
+// =====================================================
+// STATE
+// =====================================================
+
+let STATE = {
+  screen: 'intro',
+  qIndex: 0,
+  fromTransition: false,
+  answers: new Array(17).fill(null),
+  formData: {},
+  reportData: null,
+  QUESTIONS: [],
+  GEO: {},
+};
+
+// =====================================================
+// UTILITIES
+// =====================================================
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function sectionForQ(i) {
+  return SECTIONS.findIndex(s => i >= s.range[0] && i <= s.range[1]);
+}
+
+function pct(qIdx) {
+  return Math.round(5 + (qIdx / 17) * 95);
+}
+
+function truncate(str, len) {
+  if (!str) return '';
+  return str.length <= len ? str : str.slice(0, len).trimEnd() + '…';
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }); }
+  catch { return iso; }
+}
+
+function mount(html) {
+  const app = document.getElementById('app');
+  app.innerHTML = html;
+  return app;
+}
+
+// =====================================================
+// BOOT
+// =====================================================
+
+async function boot() {
+  try {
+    const [qRes, gRes] = await Promise.all([fetch('/api/questions'), fetch('/api/geo')]);
+    const qData = await qRes.json();
+    STATE.QUESTIONS = qData.questions || [];
+    STATE.GEO = await gRes.json();
+  } catch (e) { /* graceful: proceed without geo; questions may be empty */ }
+  showIntro();
+}
+
+// =====================================================
+// SCREEN: INTRO
+// =====================================================
+
+function showIntro() {
+  STATE.screen = 'intro';
+  mount(`
+    <div class="screen-full">
+      <div class="inner">
+        <div class="intro-brand">Palm Beach Placements</div>
+        <h1 class="intro-headline">Behavioral Profile Assessment</h1>
+        <p class="intro-desc">Discover how you naturally communicate, make decisions, lead, collaborate, and perform at your best.</p>
+        <div class="intro-meta">
+          <span class="intro-meta-item">17 questions</span>
+          <span class="intro-meta-item">Approximately 3 minutes</span>
+          <span class="intro-meta-item">Confidential</span>
+        </div>
+        <div class="intro-receives">
+          <div class="intro-receives-title">What You'll Receive</div>
+          <ul class="intro-receives-list">
+            <li>Behavioral archetype and profile</li>
+            <li>Communication and leadership style</li>
+            <li>Strengths and blind spots</li>
+            <li>Manager's guide</li>
+            <li>Personal insight layer (if birth info provided)</li>
+          </ul>
+        </div>
+        <button class="btn-gold" id="btn-begin">Begin Assessment</button>
+      </div>
+    </div>
+  `);
+  document.getElementById('btn-begin').onclick = showPersonal;
+}
+
+// =====================================================
+// SCREEN: PERSONAL INFO
+// =====================================================
+
+function showPersonal() {
+  STATE.screen = 'personal';
+  const fd = STATE.formData;
+  const countries = Object.keys(STATE.GEO).sort();
+  const countryOpts = countries.map(c => `<option value="${esc(c)}"${fd.country===c?' selected':''}>${esc(c)}</option>`).join('');
+
+  mount(`
+    <div class="screen-content">
+      <div class="sticky-header">
+        <div class="sticky-header-inner">
+          <div class="sticky-header-row">
+            <div class="brand-tag">Palm Beach Placements</div>
+            <div class="header-meta">About You</div>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:5%"></div></div>
+        </div>
+      </div>
+
+      <div class="content-wrap">
+        <div class="card">
+          <h2 class="form-title">About You</h2>
+          <p class="form-subtitle">Required fields marked with ✦. Optional fields unlock deeper insights.</p>
+
+          <div class="form-grid">
+            <div class="form-field">
+              <label class="form-label" for="f-fn">First Name <span class="req-mark">✦</span></label>
+              <input class="form-input" type="text" id="f-fn" value="${esc(fd.firstName||'')}" autocomplete="given-name">
+            </div>
+            <div class="form-field">
+              <label class="form-label" for="f-ln">Last Name <span class="req-mark">✦</span></label>
+              <input class="form-input" type="text" id="f-ln" value="${esc(fd.lastName||'')}" autocomplete="family-name">
+            </div>
+            <div class="form-field full-width">
+              <label class="form-label" for="f-em">Email <span class="req-mark">✦</span></label>
+              <input class="form-input" type="email" id="f-em" value="${esc(fd.email||'')}" autocomplete="email">
+            </div>
+            <div class="form-field full-width">
+              <label class="form-label" for="f-bd">Date of Birth <span class="opt-tag">(optional)</span></label>
+              <input class="form-input" type="date" id="f-bd" value="${esc(fd.birthday||'')}">
+              <div class="form-hint">Used to calculate your numerology profile and optional astrological context.</div>
+            </div>
+            <div class="form-field full-width">
+              <label class="form-label" for="f-bn">Full Birth Name <span class="opt-tag">(optional)</span></label>
+              <input class="form-input" type="text" id="f-bn" value="${esc(fd.birthName||'')}" placeholder="Full name on birth certificate">
+              <div class="form-hint">Your full name as it appears on your birth certificate. Used for name-based numerology insights.</div>
+            </div>
+            <div class="form-field full-width">
+              <label class="form-label">Birthplace <span class="opt-tag">(optional)</span></label>
+              <div class="form-geo-row">
+                <select class="form-input" id="f-country">
+                  <option value="">Select country…</option>
+                  ${countryOpts}
+                </select>
+                <input class="form-input" type="text" id="f-city" value="${esc(fd.city||'')}" list="city-dl" placeholder="Start typing a city…">
+                <datalist id="city-dl"></datalist>
+              </div>
+              <div class="form-hint">Used for optional astrological interpretation. Birth time is not required.</div>
+            </div>
+          </div>
+
+          <label class="form-consent" for="f-consent">
+            <input type="checkbox" id="f-consent" ${fd.consent?'checked':''}>
+            <span class="form-consent-text">I consent to Palm Beach Placements collecting and processing the information I provide for recruitment and candidate-assessment purposes.</span>
+          </label>
+          <p class="form-privacy">Your information is collected and processed by Palm Beach Placements for assessment purposes only and will not be sold or shared.</p>
+
+          <div class="form-actions">
+            <div class="form-error" id="personal-err"></div>
+            <button class="btn-navy" id="btn-personal-continue">Continue →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+
+  // Wire city datalist
+  const countryEl = document.getElementById('f-country');
+  const cityDL    = document.getElementById('city-dl');
+  const updateCities = (c) => {
+    cityDL.innerHTML = (STATE.GEO[c] || []).map(city => `<option value="${esc(city)}">`).join('');
+  };
+  if (fd.country) updateCities(fd.country);
+  countryEl.onchange = () => updateCities(countryEl.value);
+
+  document.getElementById('btn-personal-continue').onclick = () => {
+    const err   = document.getElementById('personal-err');
+    err.textContent = '';
+    const fn      = document.getElementById('f-fn').value.trim();
+    const ln      = document.getElementById('f-ln').value.trim();
+    const em      = document.getElementById('f-em').value.trim();
+    const bd      = document.getElementById('f-bd').value;
+    const bn      = document.getElementById('f-bn').value.trim();
+    const country = countryEl.value;
+    const city    = document.getElementById('f-city').value.trim();
+    const consent = document.getElementById('f-consent').checked;
+
+    if (!fn)                                        { err.textContent = 'First name is required.'; return; }
+    if (!ln)                                        { err.textContent = 'Last name is required.'; return; }
+    if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { err.textContent = 'A valid email is required.'; return; }
+    if (!consent)                                   { err.textContent = 'Please accept the consent statement to continue.'; return; }
+
+    STATE.formData = { firstName: fn, lastName: ln, email: em, birthday: bd, birthName: bn, country, city, consent };
+    showSectionTransition(0);
+  };
+}
+
+// =====================================================
+// SECTION TRANSITION
+// =====================================================
+
+function showSectionTransition(sIdx) {
+  STATE.screen = 'transition';
+  const s = SECTIONS[sIdx];
+
+  mount(`
+    <div class="screen-full">
+      <div class="inner">
+        <div class="transition-num">${sIdx + 1}</div>
+        <div class="transition-label">Section ${sIdx + 1} of ${SECTIONS.length}</div>
+        <h2 class="transition-name">${esc(s.name)}</h2>
+        <p class="transition-desc">${esc(s.desc)}</p>
+        <button class="btn-gold" id="btn-begin-section">Begin Section →</button>
+      </div>
+    </div>
+  `);
+
+  document.getElementById('btn-begin-section').onclick = () => {
+    STATE.qIndex = s.range[0];
+    STATE.fromTransition = true;
+    showQuestion();
+  };
+}
+
+// =====================================================
+// SCREEN: QUESTION
+// =====================================================
+
+function showQuestion() {
+  STATE.screen = 'question';
+  const i       = STATE.qIndex;
+  const q       = STATE.QUESTIONS[i];
+  const sIdx    = sectionForQ(i);
+  const section = SECTIONS[sIdx];
+  const curAns  = STATE.answers[i];
+  const totalQ  = STATE.QUESTIONS.length || 17;
+
+  mount(`
+    <div class="screen-content">
+      <div class="sticky-header">
+        <div class="sticky-header-inner">
+          <div class="sticky-header-row">
+            <div class="question-section-label">${esc(section.name)}</div>
+            <div class="header-meta">Question ${i + 1} of ${totalQ}</div>
+          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct(i)}%"></div></div>
+        </div>
+      </div>
+
+      <div class="content-wrap" style="display:flex;align-items:flex-start;justify-content:center;">
+        <div class="card card-fade" id="q-card" style="width:100%;margin-top:8px;">
+          <p class="question-text">${i + 1}. ${esc(q ? q.text : '')}</p>
+
+          <div class="scale-row" id="scale-row">
+            ${[1,2,3,4,5].map((v) => `
+              <div class="scale-item">
+                <button class="scale-btn${curAns === v ? ' selected' : ''}" data-val="${v}" aria-label="${v} — ${SCALE_LABELS[v-1].replace('\n',' ')}">
+                  <span class="scale-num">${v}</span>
+                </button>
+                <div class="scale-item-label">${esc(SCALE_LABELS[v-1]).replace('\n','<br>')}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="scale-legend-mobile">1 = Strongly Disagree &nbsp;·&nbsp; 5 = Strongly Agree</div>
+
+          <div class="question-nav">
+            <button class="btn-ghost" id="btn-back">← Back</button>
+            <button class="btn-navy" id="btn-next"${curAns === null ? ' disabled' : ''}>Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `);
+
+  // Scale clicks
+  document.getElementById('scale-row').addEventListener('click', e => {
+    const btn = e.target.closest('.scale-btn');
+    if (!btn) return;
+    const val = parseInt(btn.dataset.val, 10);
+    STATE.answers[i] = val;
+    document.querySelectorAll('.scale-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('btn-next').removeAttribute('disabled');
+  });
+
+  // Back
+  document.getElementById('btn-back').onclick = () => {
+    fadeCard(() => {
+      if (i === 0) {
+        showPersonal();
+      } else {
+        STATE.qIndex = i - 1;
+        STATE.fromTransition = false;
+        showQuestion();
+      }
+    });
+  };
+
+  // Next
+  document.getElementById('btn-next').onclick = () => {
+    if (STATE.answers[i] === null) return;
+    const nextI = i + 1;
+    const totalQuestions = STATE.QUESTIONS.length || 17;
+
+    if (nextI >= totalQuestions) {
+      // Last question → processing
+      fadeCard(() => showProcessing());
+      return;
+    }
+
+    const currSection = sectionForQ(i);
+    const nextSection = sectionForQ(nextI);
+    const enteringNewSection = nextSection !== currSection;
+
+    if (enteringNewSection && !STATE.fromTransition) {
+      fadeCard(() => showSectionTransition(nextSection));
+    } else {
+      STATE.fromTransition = false;
+      fadeCard(() => {
+        STATE.qIndex = nextI;
+        showQuestion();
+      });
+    }
+  };
+}
+
+function fadeCard(cb) {
+  const card = document.getElementById('q-card');
+  if (!card) { cb(); return; }
+  card.classList.add('fading');
+  setTimeout(cb, 220);
+}
+
+// =====================================================
+// SCREEN: PROCESSING
+// =====================================================
+
+function showProcessing() {
+  STATE.screen = 'processing';
+  mount(`
+    <div class="screen-full">
+      <div class="inner">
+        <div class="spinner-ring"></div>
+        <p class="processing-headline">Building your profile…</p>
+        <p class="processing-msg" id="proc-msg">${esc(PROCESSING_MSGS[0])}</p>
+      </div>
+    </div>
+  `);
+
+  // Cycle messages
+  let msgIdx = 0;
+  const msgEl = document.getElementById('proc-msg');
+  const msgTimer = setInterval(() => {
+    msgIdx = (msgIdx + 1) % PROCESSING_MSGS.length;
+    msgEl.style.opacity = '0';
+    setTimeout(() => {
+      if (msgEl.isConnected) {
+        msgEl.textContent = PROCESSING_MSGS[msgIdx];
+        msgEl.style.opacity = '1';
+      }
+    }, 320);
+  }, 2500);
+
+  // API call
+  const fd = STATE.formData;
+  const birthplace = [fd.city, fd.country].filter(Boolean).join(', ') || null;
+  const payload = {
+    person: { firstName: fd.firstName, lastName: fd.lastName, email: fd.email, birthday: fd.birthday || null },
+    optional: { birthplace, birthName: fd.birthName || null },
+    answers: STATE.answers.map(Number),
+  };
+
+  fetch('/api/assess', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => { if (!r.ok) throw new Error('Server error ' + r.status); return r.json(); })
+  .then(data => {
+    clearInterval(msgTimer);
+    STATE.reportData = data;
+    showResults();
+  })
+  .catch(err => {
+    clearInterval(msgTimer);
+    mount(`
+      <div class="screen-full">
+        <div class="inner">
+          <p style="color:var(--gold);font-size:36px;margin-bottom:18px;">⚠</p>
+          <p style="color:var(--white);font-size:18px;margin-bottom:16px;">Something went wrong generating your report.</p>
+          <p style="color:rgba(255,255,255,.45);font-size:14px;margin-bottom:36px;">${esc(String(err.message||err))}</p>
+          <button class="btn-gold" id="btn-retry">Try Again</button>
+        </div>
+      </div>
+    `);
+    document.getElementById('btn-retry').onclick = showProcessing;
+  });
+}
+
+// =====================================================
+// SCREEN: RESULTS
+// =====================================================
+
+function showResults() {
+  STATE.screen = 'results';
+  const data   = STATE.reportData;
+  if (!data) { mount(`<div class="screen-full"><div class="inner"><p style="color:var(--white)">No report data available.</p></div></div>`); return; }
+
+  const report = data.report || {};
+  const scores = data.scores || {};
+  const traits = scores.traits || {};
+  const disc   = scores.disc   || {};
+  const pg     = report.pages  || {};
+  const p1     = pg[1] || {};
+  const p2     = pg[2] || {};
+  const p3     = pg[3] || {};   // astrology + numerology
+  const p4     = pg[4] || {};   // how to work with this person
+  const meta   = report.meta   || {};
+
+  const discPrimary = disc.primary || 'D';
+  const tagline     = TAGLINES[discPrimary] || '';
+  const discName    = DISC_NAMES[discPrimary] || discPrimary;
+  const archetype   = (data.archetype && data.archetype.name) ? data.archetype.name : (meta.archetype || '');
+  const fullName    = meta.name || `${STATE.formData.firstName||''} ${STATE.formData.lastName||''}`.trim();
+  const dateStr     = formatDate(meta.createdAt);
+  const pdfUrl      = data.pdfUrl || '#';
+
+  // Personal insight: show only when real astro content exists
+  const astroText   = p3.astrologyNarrative || '';
+  const showInsight = astroText && !astroText.startsWith('Astrology information was not provided');
+
+  // At-a-glance cards
+  const glanceCards = [
+    { label: 'Primary Style',     value: discName },
+    { label: 'Communication',     value: truncate(p2.communication,  60) },
+    { label: 'Primary Motivator', value: truncate(p2.motivation,     60) },
+    { label: 'Decision Style',    value: truncate(p2.decisionMaking, 60) },
+    { label: 'Ideal Environment', value: truncate(p4.bestFit,        60) },
+  ];
+
+  // Top 4 strengths by trait score
+  const top4Strengths = Object.entries(STRENGTH_MAP)
+    .map(([k, v]) => ({ key: k, ...v, score: traits[k] ?? 50 }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4);
+
+  const blindSpots = DISC_BLINDSPOTS[discPrimary] || [];
+
+  const glanceHTML = glanceCards.map(c => `
+    <div class="glance-card">
+      <div class="glance-card-label">${esc(c.label)}</div>
+      <div class="glance-card-value">${esc(c.value)}</div>
+    </div>
+  `).join('');
+
+  const spectrumHTML = SPECTRUM_DEFS.map(sp => {
+    const score = traits[sp.trait] ?? 50;
+    return `
+      <div class="spectrum-row">
+        <span class="spectrum-pole">${esc(sp.lo)}</span>
+        <div class="spectrum-bar"><div class="spectrum-dot" style="left:${score}%"></div></div>
+        <span class="spectrum-pole right">${esc(sp.hi)}</span>
+      </div>
+    `;
+  }).join('');
+
+  const patternHTML = [
+    { label: 'Communication',   text: p2.communication   },
+    { label: 'Leadership',      text: p2.leadership      },
+    { label: 'Decision-Making', text: p2.decisionMaking  },
+    { label: 'Motivation',      text: p2.motivation      },
+    { label: 'Under Pressure',  text: p2.friction        },
+  ].map(item => `
+    <div class="pattern-item">
+      <div class="pattern-label">${esc(item.label)}</div>
+      <div class="pattern-text">${esc(item.text || '')}</div>
+    </div>
+  `).join('');
+
+  const strengthsHTML = top4Strengths.map(s => `
+    <div class="strength-card">
+      <div class="strength-title">${esc(s.title)}</div>
+      <div class="strength-desc">${esc(s.desc)}</div>
+    </div>
+  `).join('');
+
+  const blindspotsHTML = blindSpots.map(bs => `
+    <div class="blindspot-card">
+      <div class="blindspot-title">${esc(bs.title)}</div>
+      <div class="blindspot-when-label">When It Appears</div>
+      <div class="blindspot-when">${esc(bs.when)}</div>
+      <div class="blindspot-tip">${esc(bs.tip)}</div>
+    </div>
+  `).join('');
+
+  const workwithHTML = [
+    { label: 'How to Manage',        text: p4.manage           },
+    { label: 'How to Motivate',      text: p4.motivate         },
+    { label: 'How to Give Feedback', text: p4.feedback         },
+    { label: 'What They Need',       text: p4.needsFromManager },
+  ].map(item => `
+    <div class="workwith-card">
+      <div class="workwith-label">${esc(item.label)}</div>
+      <div class="workwith-text">${esc(item.text || '')}</div>
+    </div>
+  `).join('');
+
+  const insightHTML = showInsight ? `
+    <div class="section-bg-white">
+      <div class="results-section">
+        <h2 class="section-title">Personal Insight Layer</h2>
+        <div class="insight-card">
+          <div class="insight-badge">Personal Insight Layer · Supplementary Context Only</div>
+          ${p3.numerologyNarrative ? `
+          <div class="insight-row">
+            <div class="insight-row-label">Numerology</div>
+            <div class="insight-row-text">${esc(p3.numerologyNarrative)}</div>
+          </div>` : ''}
+          <div class="insight-row">
+            <div class="insight-row-label">Astrology</div>
+            <div class="insight-row-text">${esc(astroText)}</div>
+          </div>
+          ${p3.integration ? `
+          <div class="insight-row">
+            <div class="insight-row-label">Integration</div>
+            <div class="insight-row-text">${esc(p3.integration)}</div>
+          </div>` : ''}
+          <div class="insight-disclaimer">Astrology and numerology are reflective context only. They are not a basis for any employment decision.</div>
+        </div>
+      </div>
+    </div>
+  ` : '';
+
+  mount(`
+    <div id="results-container">
+
+      <!-- ── Profile Header ── -->
+      <div class="results-header">
+        <div class="results-header-inner">
+          <div class="results-label">Your Behavioral Profile</div>
+          <h1 class="results-name">${esc(fullName)}</h1>
+          ${archetype ? `<div class="results-archetype">${esc(archetype)}</div>` : ''}
+          <div class="results-tagline">${esc(tagline)}</div>
+          ${dateStr ? `<div class="results-date">Completed ${esc(dateStr)}</div>` : ''}
+          <div class="results-header-actions">
+            <a href="${esc(pdfUrl)}" target="_blank" rel="noopener" class="btn-gold">⬇ Download PDF</a>
+            <span class="email-note">A copy has been sent to your email</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── At a Glance ── -->
+      <div class="section-bg-white">
+        <div class="results-section">
+          <h2 class="section-title">At a Glance</h2>
+          <div class="glance-grid">${glanceHTML}</div>
+        </div>
+      </div>
+
+      <!-- ── Behavioral Spectrum ── -->
+      <div class="results-section">
+        <h2 class="section-title">How You're Wired</h2>
+        <div class="spectrum-list">${spectrumHTML}</div>
+      </div>
+
+      <!-- ── Core Profile ── -->
+      <div class="section-bg-white">
+        <div class="results-section">
+          <h2 class="section-title">Core Profile</h2>
+          <div class="prose-card">${esc(p1.executiveSummary || '')}</div>
+        </div>
+      </div>
+
+      <!-- ── Behavioral Pattern ── -->
+      <div class="results-section">
+        <h2 class="section-title">Behavioral Pattern</h2>
+        <div class="pattern-grid">${patternHTML}</div>
+      </div>
+
+      <!-- ── Strengths ── -->
+      <div class="section-bg-white">
+        <div class="results-section">
+          <h2 class="section-title">Strengths in Action</h2>
+          <div class="strength-grid">${strengthsHTML}</div>
+        </div>
+      </div>
+
+      <!-- ── Blind Spots ── -->
+      <div class="results-section">
+        <h2 class="section-title">Potential Blind Spots</h2>
+        <div class="blindspot-list">${blindspotsHTML}</div>
+      </div>
+
+      <!-- ── How to Work With This Person ── -->
+      <div class="section-bg-white">
+        <div class="results-section">
+          <h2 class="section-title">How to Work With This Person</h2>
+          <div class="workwith-grid">${workwithHTML}</div>
+        </div>
+      </div>
+
+      <!-- ── Interview Guide ── -->
+      <div class="results-section">
+        <h2 class="section-title">Suggested Interview Questions</h2>
+        <div class="interview-quote">${esc(p4.interview || '')}</div>
+      </div>
+
+      <!-- ── Personal Insight Layer (conditional) ── -->
+      ${insightHTML}
+
+      <!-- ── Disclaimer ── -->
+      <div class="results-disclaimer">${esc(report.disclaimer || '')}</div>
+
+    </div>
+  `);
+}
+
+// =====================================================
+// START
+// =====================================================
+boot();
+</script>
+</body>
+</html>
