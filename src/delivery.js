@@ -90,7 +90,10 @@ async function storeAssessment({ profile, report, opts = {} }) {
   if (fs.existsSync(storePath)) {
     try { store = JSON.parse(fs.readFileSync(storePath, "utf8")); } catch { store = {}; }
   }
-  if (store[key]) return { stored: false, reused: true, id: key, backend: "local" };
+  if (store[key]) return { stored: false, reused: true, id: key, backend: "local",
+    pdfPath: store[key].profile?.delivery?.pdfPath || null,
+    report: store[key].report || null,
+  };
   store[key] = { profile, report, createdAt: profile.createdAt };
   fs.writeFileSync(storePath, JSON.stringify(store, null, 2), "utf8");
   return { stored: true, reused: false, id: key, backend: "local" };
@@ -116,7 +119,9 @@ async function peekStored(profile, opts = {}) {
       const doc = await db.collection(opts.collection || "assessments").doc(key).get();
       if (doc.exists) {
         const data = doc.data();
-        return { reused: true, id: key, backend: "firestore", report: data.report || null };
+        return { reused: true, id: key, backend: "firestore", report: data.report || null,
+          pdfPath: data.profile?.delivery?.pdfPath || null,
+        };
       }
       return null;
     }

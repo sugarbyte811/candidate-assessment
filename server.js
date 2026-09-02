@@ -61,13 +61,14 @@ const server = http.createServer(async (req, res) => {
         adminEmail: process.env.ADMIN_EMAIL,
         config: { outDir: REPORTS, storage: { localStore: path.join(DATA, "assessments.json") } },
       });
-      const pdfName = path.basename(result.pdf.path);
+      const pdfFilePath = result.pdf?.path || result.profile?.delivery?.pdfPath || null;
+      const pdfName = pdfFilePath ? path.basename(pdfFilePath) : null;
       return send(res, 200, {
         id: result.id,
         archetype: result.archetype,
         report: result.report,
         generatedBy: result.generatedBy,
-        pdfUrl: `/reports/${pdfName}`,
+        pdfUrl: pdfName ? `/reports/${pdfName}` : null,
         emailed: result.email ? result.email.results : [],
         scores: {
           traits: result.profile.behavioral.traits,

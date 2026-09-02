@@ -24,12 +24,17 @@ async function runAssessment({ person, optional = {}, answers, adminEmail, confi
   //    inputHash already exists.
   const existing = await peekStored(profile, config.storage || {});
   if (existing && existing.reused) {
+    const reusedPdf = existing.pdfPath ? { path: existing.pdfPath, format: "pdf" } : null;
     return {
       id: existing.id,
       inputHash: profile.inputHash,
       reused: true,
+      archetype: profile.archetype,
+      generatedBy: "deterministic",
       storage: existing,
       report: existing.report || null,
+      pdf: reusedPdf,
+      email: { results: [] },
       profile,
     };
   }
