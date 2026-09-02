@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: candidate-assessment
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        generateValue: false
+      - key: NODE_ENV
+        value: production
