@@ -1562,7 +1562,8 @@ function renderReportCard({ id, title, description, readiness, price, isFree, pd
     : readiness === 'needs_birthday' ? 'Needs Date of Birth' : 'Invite Partner';
 
   const badgesHTML = `
-    ${isPopular ? `<span class="badge badge-popular" style="margin-bottom:4px;">Most Popular</span><br>` : ''}
+    ${r.assessmentLinked ? `<span class="badge" style="background:#E8F4EC;color:#3A7D52;margin-bottom:4px;">Uses Your Assessment</span><br>` : ''}
+    ${isPopular ? `<span class="badge badge-popular" style="margin-bottom:4px;">Most Popular</span><br>` : ''
     <span class="badge ${badgeClass}">${badgeText}</span>
   `;
 
@@ -1598,11 +1599,10 @@ function getCardConfigs(pdfUrl) {
   const pr = partnerReady();
   return [
     { id: 'behavioral_report',    title: 'Your Behavioral Profile',       description: 'Your complete behavioral archetype, communication style, and workplace strengths.',                                                            readiness: 'ready',                                        isFree: true, pdfUrl },
-    { id: 'personal_year_forecast', title: 'Personal Year Forecast',       description: 'Month-by-month themes, opportunities, and timing guidance for your current year.',                                                            readiness: bd ? 'ready' : 'needs_birthday',               price: '$27'  },
-    { id: 'power_wealth_report',   title: 'Power and Wealth Report',       description: 'Your natural relationship with ambition, money patterns, and strategic strengths.',                                                           readiness: bd ? 'ready' : 'needs_birthday',               price: '$97'  },
-    { id: 'career_edge',          title: 'Career Edge Report',             description: 'Numerology meets behavioral science: leadership style, ideal work environment, and career timing.',                                          readiness: bd ? 'ready' : 'needs_birthday',               price: '$77',  isPopular: true },
-    { id: 'compatibility_deep_dive', title: 'Compatibility Report',        description: 'Compare two complete numerology profiles to reveal strengths, friction, and deep patterns.',                                                  readiness: (bd && pr) ? 'ready' : (pr ? 'needs_birthday' : 'needs_partner'), price: '$97' },
-    { id: 'business_partner_compat', title: 'Business Partner Compatibility', description: 'Understand your professional dynamic, decision-making differences, and how to build together.',                                            readiness: pr ? 'ready' : 'needs_partner',                price: '$97'  },
+    { id: 'career_edge',             title: 'Career Edge Report',             description: 'Built directly from your assessment: leadership style, ideal work environment, and career timing from your behavioral results and numerology.',    readiness: bd ? 'ready' : 'needs_birthday', price: '$19.99', isPopular: true, assessmentLinked: true },
+    { id: 'personal_year_forecast',   title: 'Personal Year Forecast',         description: 'Month-by-month themes, opportunities, and timing guidance for your current Personal Year cycle.',                                              readiness: bd ? 'ready' : 'needs_birthday', price: '$9.99'  },
+    { id: 'power_wealth_report',      title: 'Power and Wealth Report',         description: 'Your natural relationship with ambition, money patterns, and strategic strengths.',                                                           readiness: bd ? 'ready' : 'needs_birthday', price: '$19.99' },
+    { id: 'business_partner_compat',  title: 'You and Your Business Partner',   description: 'Both partners take the assessment. We combine your results to reveal how you lead, decide, communicate, and build together.',                  readiness: pr ? 'ready' : 'needs_partner',  price: '$39.99' },
   ];
 }
 
@@ -1615,7 +1615,7 @@ function renderMabonxSection(data) {
     <div id="report-unlock-form" style="max-width:560px;margin:0 auto 32px;padding:0 24px;">
       <div class="card" style="text-align:center;">
         <h3 style="font-family:var(--serif);font-size:22px;color:var(--navy);margin-bottom:10px;">Unlock numerology reports</h3>
-        <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6;">Add your date of birth to generate Personal Year, Power and Wealth, and Career Edge reports.</p>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6;">Add your date of birth to unlock your Personal Year Forecast, Power and Wealth Report, and Career Edge Report.</p>
         <input type="date" id="unlock-birthday" class="form-input" style="margin-bottom:14px;">
         <button class="btn-navy" id="btn-save-birthday" style="width:100%;">Save and Unlock Reports</button>
       </div>
