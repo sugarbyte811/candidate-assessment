@@ -6,9 +6,11 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { QUESTIONS } = require("./src/questions");
 const { DISCLAIMER } = require("./src/report");
 const { runAssessment } = require("./src/pipeline");
+const { generateReport } = require("./src/firebase-report");
 const GEO = require("./src/geo");
 
 const PORT = process.env.PORT || 8787;
@@ -16,6 +18,30 @@ const PUBLIC = path.join(__dirname, "public");
 const DATA = path.join(__dirname, "data");
 const REPORTS = path.join(DATA, "reports");
 fs.mkdirSync(REPORTS, { recursive: true });
+
+// ---- JSON data stores -------------------------------------------------------
+const ASSESSMENTS_BY_EMAIL = path.join(DATA, "assessments-by-email.json");
+const PARTNER_INVITES      = path.join(DATA, "partner-invites.json");
+
+function readJsonStore(filePath) {
+  try {
+    if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch { /* ignore corrupt file */ }
+  return {};
+}
+
+function writeJsonStore(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+}
+
+// Shopify product handle -> Pinnacle product_id
+const PRODUCT_MAP = {
+  "personal-year-forecast":  "personal_year_forecast",
+  "power-wealth-report":     "power_wealth_report",
+  "career-edge-report":      "career_edge",
+  "compatibility-report":    "compatibility_deep_dive",
+  "business-partner-report": "compatibility_deep_dive",
+};
 
 const send = (res, code, body, type = "application/json") => {
   res.writeHead(code, { "Content-Type": type, "Access-Control-Allow-Origin": "*" });
@@ -77,6 +103,150 @@ const server = http.createServer(async (req, res) => {
           mbti:   result.profile.behavioral.mbti,
         },
       });
+    }
+
+    // ── Save assessment by email (called after assessment completes) ──────────
+    if (url.pathname === "/api/save-assessment" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const { email } = body;
+      if (!email) return send(res, 400, { error: "email required" });
+      const store = readJsonStore(ASSESSMENTS_BY_EMAIL);
+      store[email.toLowerCase()] = { ...body, savedAt: new Date().toISOString() };
+      writeJsonStore(ASSESSMENTS_BY_EMAIL, store);
+      return send(res, 200, { ok: true });
+    }
+
+    // ── Shopify order-paid webhook ───────────────────────────────────────────
+    if (url.pathname === "/shopify/webhook/order-paid" && req.method === "POST") {
+      const rawBody = await readBody(req);
+
+      // Verify HMAC signature when secret is configured
+      const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
+      if (secret) {
+        const hmac     = crypto.createHmac("sha256", secret).update(rawBody).digest("base64");
+        const received = req.headers["x-shopify-hmac-sha256"] || "";
+        if (hmac !== received) return send(res, 401, { error: "Invalid HMAC" });
+      }
+
+      // Respond 200 immediately so Shopify doesn't retry
+      send(res, 200, { ok: true });
+
+      // Fire async report generation (errors logged, not thrown)
+      setImmediate(async () => {
+        try {
+          const order = JSON.parse(rawBody || "{}");
+          const customerEmail = order.customer?.email?.toLowerCase();
+          if (!customerEmail) return;
+
+          const lineItems  = order.line_items || [];
+          const assessments = readJsonStore(ASSESSMENTS_BY_EMAIL);
+          const assessment  = assessments[customerEmail];
+
+          for (const item of lineItems) {
+            const handle    = item.handle || item.product_handle || "";
+            const productId = PRODUCT_MAP[handle];
+            if (!productId) continue;
+
+            const personA = assessment ? {
+              name:      [assessment.firstName, assessment.lastName].filter(Boolean).join(" "),
+              birthdate: assessment.birthday || null,
+            } : null;
+
+            const discProfile = (assessment && productId === "career_edge")
+              ? assessment.discScores || null
+              : null;
+
+            try {
+              const result = await generateReport({ productId, personA, discProfile, customerEmail });
+              console.log(`[shopify] Generated ${productId} for ${customerEmail}:`, result);
+            } catch (e) {
+              console.error(`[shopify] Failed to generate ${productId} for ${customerEmail}:`, e.message);
+            }
+          }
+        } catch (e) {
+          console.error("[shopify] Webhook processing error:", e.message);
+        }
+      });
+
+      return; // response already sent
+    }
+
+    // ── Partner invite ───────────────────────────────────────────────────────
+    if (url.pathname === "/api/partner-invite" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const { fromEmail, fromName, partnerEmail, assessmentId } = body;
+      if (!fromEmail || !partnerEmail) return send(res, 400, { error: "fromEmail and partnerEmail required" });
+
+      const store = readJsonStore(PARTNER_INVITES);
+      store[partnerEmail.toLowerCase()] = {
+        fromEmail, fromName, assessmentId,
+        createdAt: new Date().toISOString(),
+      };
+      writeJsonStore(PARTNER_INVITES, store);
+
+      // Build partner URL
+      const host     = req.headers.host || `localhost:${PORT}`;
+      const protocol = host.includes("localhost") ? "http" : "https";
+      const partnerUrl = `${protocol}://${host}/assessment?partner=${encodeURIComponent(fromEmail)}`;
+
+      // Send invite email if SMTP is configured
+      const smtpReady = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+      if (smtpReady) {
+        let nodemailer;
+        try { nodemailer = require("nodemailer"); } catch { nodemailer = null; }
+        if (nodemailer) {
+          try {
+            const transporter = nodemailer.createTransport({
+              host:   process.env.SMTP_HOST,
+              port:   Number(process.env.SMTP_PORT || 587),
+              secure: Number(process.env.SMTP_PORT) === 465,
+              auth:   { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+            });
+            await transporter.sendMail({
+              from:    process.env.MAIL_FROM || "no-reply@mabonx.com",
+              to:      partnerEmail,
+              subject: `${fromName || "Someone"} invited you to take a behavioral assessment`,
+              text:    `${fromName || "A colleague"} has invited you to complete a short behavioral assessment on Mabonx.\n\nClick this link to begin (takes about 3 minutes):\n${partnerUrl}\n\nOnce you both complete the assessment, your compatibility report will be generated automatically.`,
+            });
+          } catch (e) {
+            console.error("[partner-invite] Email send error:", e.message);
+          }
+        }
+      }
+
+      return send(res, 200, { ok: true, partnerUrl });
+    }
+
+    // ── Check partner status ─────────────────────────────────────────────────
+    if (url.pathname === "/api/check-partner" && req.method === "POST") {
+      const body = JSON.parse(await readBody(req) || "{}");
+      const { email } = body;
+      if (!email) return send(res, 400, { error: "email required" });
+
+      const invites     = readJsonStore(PARTNER_INVITES);
+      const assessments = readJsonStore(ASSESSMENTS_BY_EMAIL);
+
+      // Find any invite sent FROM this email (they invited someone else)
+      const myInviteEntry = Object.entries(invites).find(
+        ([, inv]) => inv.fromEmail?.toLowerCase() === email.toLowerCase()
+      );
+
+      let pendingInvite   = false;
+      let partnerCompleted = false;
+      let partnerName     = null;
+
+      if (myInviteEntry) {
+        const [partnerEmail] = myInviteEntry;
+        pendingInvite = true;
+        const partnerAssessment = assessments[partnerEmail.toLowerCase()];
+        if (partnerAssessment) {
+          partnerCompleted = true;
+          partnerName = [partnerAssessment.firstName, partnerAssessment.lastName]
+            .filter(Boolean).join(" ") || null;
+        }
+      }
+
+      return send(res, 200, { pendingInvite, partnerCompleted, partnerName });
     }
 
     // Serve generated PDFs/HTML
