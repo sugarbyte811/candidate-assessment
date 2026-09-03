@@ -1000,6 +1000,8 @@ function showIntro() {
           <div id="retrieve-box" style="display:none;max-width:380px;margin:16px auto 0;">
             <input id="retrieve-email" type="email" placeholder="your@email.com" autocomplete="email"
                    style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;font-size:15px;margin-bottom:10px;">
+            <input id="retrieve-code" type="text" placeholder="access code" autocomplete="off" maxlength="6"
+                   style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;font-size:15px;margin-bottom:10px;text-transform:uppercase;letter-spacing:3px;font-family:monospace;">
             <button class="btn-ghost" id="btn-retrieve" style="width:100%;">Find My Results</button>
             <p id="retrieve-msg" style="color:rgba(255,255,255,.55);font-size:13px;margin-top:10px;min-height:18px;"></p>
           </div>
@@ -1025,15 +1027,19 @@ function showIntro() {
     retrieveBtn.addEventListener('click', async () => {
       const input = document.getElementById('retrieve-email');
       const msg   = document.getElementById('retrieve-msg');
+      const codeEl = document.getElementById('retrieve-code');
       const email = ((input || {}).value || '').trim();
+      const code  = ((codeEl || {}).value || '').trim().toUpperCase();
       if (!email) { if (msg) msg.textContent = 'Enter the email you used.'; return; }
+      if (!code)  { if (msg) msg.textContent = 'Enter the access code from your report.'; return; }
       if (msg) msg.textContent = 'Looking...';
       retrieveBtn.disabled = true;
       try {
-        const res  = await fetch('/api/my-assessment?email=' + encodeURIComponent(email));
+        const res  = await fetch('/api/my-assessment?email=' + encodeURIComponent(email)
+                                 + '&code=' + encodeURIComponent(code));
         const body = await res.json();
         if (!res.ok) {
-          if (msg) msg.textContent = body.error || 'No saved results for that email.';
+          if (msg) msg.textContent = body.error || 'That email and access code do not match.';
           return;
         }
         showRetrievedAssessment(body.assessment);
@@ -1059,6 +1065,15 @@ function showRetrievedAssessment(a) {
     pdfUrl: a.pdfUrl,
   });
 
+  // Preferred path: we stored the whole report payload, so rebuild the real
+  // results screen with the Mabonx cards and working buy buttons.
+  if (a.full && a.full.report) {
+    STATE.reportData = a.full;
+    showResults();
+    return;
+  }
+
+  // Fallback for records saved before full payloads were stored.
   const name  = [a.firstName, a.lastName].filter(Boolean).join(' ') || 'there';
   const saved = a.savedAt ? new Date(a.savedAt).toLocaleDateString() : null;
 
@@ -1623,6 +1638,14 @@ function showResults() {
       <!-- ── Disclaimer ── -->
       <div class="results-disclaimer">${esc(report.disclaimer || '')}</div>
 
+      <!-- ── Access code ── -->
+      ${data.accessCode ? `
+      <div class="results-section" style="text-align:center;">
+        <h2 class="section-title">Save Your Access Code</h2>
+        <p style="color:var(--muted);margin-bottom:14px;">Use this with your email address to view these results again. It is also printed on your PDF.</p>
+        <div style="font-family:monospace;font-size:30px;letter-spacing:6px;color:var(--navy);font-weight:700;">${esc(data.accessCode)}</div>
+      </div>` : ''}
+
       <!-- ── Mabonx Reports ── -->
       ${renderMabonxSection(data)}
 
@@ -1970,6 +1993,9 @@ function autoSaveAssessment(data) {
       mbtiType:     data.scores && data.scores.mbti ? data.scores.mbti.type : undefined,
       assessmentId: data.id,
       pdfUrl:       data.pdfUrl,
+      accessCode:   data.accessCode,
+      // Full payload so retrieval can rebuild the real results screen.
+      full:         data,
     }),
   }).catch(e => console.warn('[auto-save]', e));
 }

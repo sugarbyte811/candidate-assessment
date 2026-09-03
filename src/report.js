@@ -469,7 +469,13 @@ function renderReport(profile, narrative = null) {
   const generatedBy = narrative ? "ai" : "deterministic";
   const name = `${profile.person.firstName} ${profile.person.lastName}`;
   return {
-    meta: { name, generatedBy, createdAt: profile.createdAt, archetype: profile.archetype.name },
+    meta: {
+      name,
+      generatedBy,
+      createdAt: profile.createdAt,
+      archetype: profile.archetype.name,
+      accessCode: profile.person.accessCode || null,
+    },
     disclaimer: DISCLAIMER,
     pages: {
       1: { title: "Personality Snapshot", ...n.page1 },

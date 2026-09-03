@@ -23,6 +23,16 @@ fs.mkdirSync(REPORTS, { recursive: true });
 const ASSESSMENTS_BY_EMAIL = path.join(DATA, "assessments-by-email.json");
 const PARTNER_INVITES      = path.join(DATA, "partner-invites.json");
 
+// Unambiguous alphabet: no O/0, I/1, so codes survive being read off a screen.
+function makeAccessCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < 6; i++) {
+    out += alphabet[crypto.randomInt(0, alphabet.length)];
+  }
+  return out;
+}
+
 function readJsonStore(filePath) {
   try {
     if (fs.existsSync(filePath)) return JSON.parse(fs.readFileSync(filePath, "utf8"));
@@ -80,8 +90,16 @@ const server = http.createServer(async (req, res) => {
       if (!body.person || !Array.isArray(body.answers) || body.answers.length !== 17) {
         return send(res, 400, { error: "Need person + 17 answers." });
       }
+      // Stable per-email access code, reused across retakes so an earlier PDF
+      // keeps working. Generated before the run so it can be printed on the PDF.
+      const priorStore = readJsonStore(ASSESSMENTS_BY_EMAIL);
+      const priorEmail = (body.person.email || "").toLowerCase();
+      const accessCode =
+        (priorEmail && priorStore[priorEmail] && priorStore[priorEmail].accessCode) ||
+        makeAccessCode();
+
       const result = await runAssessment({
-        person: body.person,
+        person: { ...body.person, accessCode },
         optional: body.optional || {},
         answers: body.answers.map(Number),
         adminEmail: process.env.ADMIN_EMAIL,
@@ -91,6 +109,7 @@ const server = http.createServer(async (req, res) => {
       const pdfName = pdfFilePath ? path.basename(pdfFilePath) : null;
       return send(res, 200, {
         id: result.id,
+        accessCode,
         archetype: result.archetype,
         report: result.report,
         generatedBy: result.generatedBy,
@@ -110,19 +129,32 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req) || "{}");
       const { email } = body;
       if (!email) return send(res, 400, { error: "email required" });
+      const key   = email.toLowerCase();
       const store = readJsonStore(ASSESSMENTS_BY_EMAIL);
-      store[email.toLowerCase()] = { ...body, savedAt: new Date().toISOString() };
+      // Prefer the code minted during /api/assess (it is the one printed on the
+      // PDF), then any code already on file, and only mint as a last resort.
+      const accessCode =
+        body.accessCode ||
+        (store[key] && store[key].accessCode) ||
+        makeAccessCode();
+      store[key] = { ...body, accessCode, savedAt: new Date().toISOString() };
       writeJsonStore(ASSESSMENTS_BY_EMAIL, store);
-      return send(res, 200, { ok: true });
+      return send(res, 200, { ok: true, accessCode });
     }
 
     // ── Look up a saved assessment by email ──────────────────────────────────
     if (url.pathname === "/api/my-assessment" && req.method === "GET") {
       const email = (url.searchParams.get("email") || "").trim().toLowerCase();
+      const code  = (url.searchParams.get("code")  || "").trim().toUpperCase();
       if (!email) return send(res, 400, { error: "email required" });
+      if (!code)  return send(res, 400, { error: "access code required" });
       const store = readJsonStore(ASSESSMENTS_BY_EMAIL);
       const found = store[email];
-      if (!found) return send(res, 404, { error: "No saved assessment for that email." });
+      // Same response for unknown email and wrong code, so this cannot be used
+      // to discover which email addresses have taken the assessment.
+      if (!found || String(found.accessCode || "").toUpperCase() !== code) {
+        return send(res, 403, { error: "That email and access code do not match." });
+      }
       return send(res, 200, { ok: true, assessment: found });
     }
 

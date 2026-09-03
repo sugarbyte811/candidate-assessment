@@ -107,6 +107,7 @@ async function renderPdf(report, outPath) {
 
   const displayName = report.meta.name;
   const archetype   = report.meta.archetype || "";
+  const accessCode  = report.meta.accessCode || "";
   const rawDate     = report.meta.createdAt;
   const dateStr     = rawDate ? (() => {
     try {
@@ -149,6 +150,20 @@ async function renderPdf(report, outPath) {
       doc.moveDown(0.5);
       doc.font("Helvetica").fontSize(10).fillColor(MUTED)
         .text(`Completed ${dateStr}`, { width: CONTENT_W, align: "center" });
+    }
+
+    // Access code — needed to retrieve these results later, so make it findable.
+    if (accessCode) {
+      doc.moveDown(2.2);
+      doc.font("Helvetica").fontSize(9).fillColor(MUTED)
+        .text("ACCESS CODE", { width: CONTENT_W, align: "center", characterSpacing: 2 });
+      doc.moveDown(0.35);
+      doc.font("Courier-Bold").fontSize(20).fillColor(DARK)
+        .text(accessCode, { width: CONTENT_W, align: "center", characterSpacing: 3 });
+      doc.moveDown(0.45);
+      doc.font("Helvetica").fontSize(9).fillColor(MUTED)
+        .text("Keep this. You will need it with your email address to view your results again.",
+          { width: CONTENT_W, align: "center" });
     }
 
     // Company name — very muted, near bottom

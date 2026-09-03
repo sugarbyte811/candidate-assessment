@@ -33,6 +33,7 @@ function buildProfile({ person, optional = {}, answers }) {
       lastName: person.lastName,
       email: person.email,
       birthday: person.birthday, // YYYY-MM-DD
+      accessCode: person.accessCode || null, // printed on the PDF, used for retrieval
     },
     optional: {
       birthplace: optional.birthplace ?? null,
