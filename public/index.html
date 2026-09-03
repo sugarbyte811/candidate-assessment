@@ -1552,7 +1552,7 @@ function showResults() {
 function birthdayReady() { return !!(STATE.formData.birthday && STATE.formData.birthday.trim()); }
 function partnerReady()  { return !!(STATE.partnerStatus && STATE.partnerStatus.partnerCompleted); }
 
-function renderReportCard({ id, title, description, readiness, price, isFree, pdfUrl, isPopular }) {
+function renderReportCard({ id, title, description, readiness, price, isFree, pdfUrl, isPopular, assessmentLinked }) {
   // readiness: 'ready' | 'needs_birthday' | 'needs_partner'
   const badgeClass = readiness === 'ready'
     ? (isFree ? 'badge-gold' : 'badge-green')
@@ -1562,7 +1562,7 @@ function renderReportCard({ id, title, description, readiness, price, isFree, pd
     : readiness === 'needs_birthday' ? 'Needs Date of Birth' : 'Invite Partner';
 
   const badgesHTML = `
-    ${r.assessmentLinked ? `<span class="badge" style="background:#E8F4EC;color:#3A7D52;margin-bottom:4px;">Uses Your Assessment</span><br>` : ''}
+    ${assessmentLinked ? `<span class="badge" style="background:#E8F4EC;color:#3A7D52;margin-bottom:4px;">Uses Your Assessment</span><br>` : ''}
     ${isPopular ? `<span class="badge badge-popular" style="margin-bottom:4px;">Most Popular</span><br>` : ''}
     <span class="badge ${badgeClass}">${badgeText}</span>
   `;
