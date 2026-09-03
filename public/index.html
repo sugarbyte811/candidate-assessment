@@ -1594,6 +1594,31 @@ function renderReportCard({ id, title, description, readiness, price, isFree, pd
   `;
 }
 
+// Shopify storefront + variant ids for the paid reports.
+// Cart permalinks carry assessment context through checkout as order attributes,
+// so the orders/paid webhook can match a purchase to the right assessment.
+const SHOPIFY_STORE = 'pznf0k-9p.myshopify.com';
+const PRODUCT_VARIANTS = {
+  career_edge:             '45402285015222',
+  personal_year_forecast:  '45400241602742',
+  power_wealth_report:     '45402285047990',
+  business_partner_compat: '45402285080758',
+};
+
+function buildCheckoutUrl(productId) {
+  const variantId = PRODUCT_VARIANTS[productId];
+  if (!variantId) return null;
+  const fd = STATE.formData || {};
+  const params = new URLSearchParams();
+  if (fd.email) params.set('checkout[email]', fd.email);
+  if (fd.email) params.set('attributes[assessment_email]', fd.email);
+  if (STATE.reportData && STATE.reportData.id) {
+    params.set('attributes[assessment_id]', STATE.reportData.id);
+  }
+  const qs = params.toString();
+  return `https://${SHOPIFY_STORE}/cart/${variantId}:1${qs ? '?' + qs : ''}`;
+}
+
 function getCardConfigs(pdfUrl) {
   const bd = birthdayReady();
   const pr = partnerReady();
@@ -1690,6 +1715,24 @@ function showBuyModal({ productId, title, price }, data) {
     <p><strong style="color:var(--navy);">Your name:</strong> ${esc(fd.firstName || '')} ${esc(fd.lastName || '')}</p>
     ${fd.birthday ? `<p style="margin-top:4px;"><strong style="color:var(--navy);">Date of birth:</strong> ${esc(fd.birthday)}</p>` : ''}
   `;
+
+  // Point the continue button at the real Shopify checkout for this product.
+  const continueBtn = document.getElementById('modal-continue-btn');
+  if (continueBtn) {
+    const checkoutUrl = buildCheckoutUrl(productId);
+    if (checkoutUrl) {
+      continueBtn.href = checkoutUrl;
+      continueBtn.style.pointerEvents = '';
+      continueBtn.style.opacity = '';
+      continueBtn.textContent = 'Continue to Checkout \u2192';
+    } else {
+      continueBtn.removeAttribute('href');
+      continueBtn.style.pointerEvents = 'none';
+      continueBtn.style.opacity = '0.5';
+      continueBtn.textContent = 'Unavailable';
+    }
+  }
+
   overlay.classList.add('open');
 }
 
