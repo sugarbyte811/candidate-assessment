@@ -994,10 +994,99 @@ function showIntro() {
           </ul>
         </div>
         <button class="btn-gold" id="btn-begin">Begin Assessment</button>
+
+        <div style="margin-top:28px;">
+          <a href="#" id="btn-show-retrieve" style="color:rgba(255,255,255,.55);font-size:14px;text-decoration:underline;">Already took this? Get my results</a>
+          <div id="retrieve-box" style="display:none;max-width:380px;margin:16px auto 0;">
+            <input id="retrieve-email" type="email" placeholder="your@email.com" autocomplete="email"
+                   style="width:100%;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:#fff;font-size:15px;margin-bottom:10px;">
+            <button class="btn-ghost" id="btn-retrieve" style="width:100%;">Find My Results</button>
+            <p id="retrieve-msg" style="color:rgba(255,255,255,.55);font-size:13px;margin-top:10px;min-height:18px;"></p>
+          </div>
+        </div>
       </div>
     </div>
   `);
   document.getElementById('btn-begin').onclick = showPersonal;
+
+  const showRetrieve = document.getElementById('btn-show-retrieve');
+  const retrieveBox  = document.getElementById('retrieve-box');
+  if (showRetrieve && retrieveBox) {
+    showRetrieve.addEventListener('click', (e) => {
+      e.preventDefault();
+      retrieveBox.style.display = retrieveBox.style.display === 'none' ? 'block' : 'none';
+      const input = document.getElementById('retrieve-email');
+      if (input) input.focus();
+    });
+  }
+
+  const retrieveBtn = document.getElementById('btn-retrieve');
+  if (retrieveBtn) {
+    retrieveBtn.addEventListener('click', async () => {
+      const input = document.getElementById('retrieve-email');
+      const msg   = document.getElementById('retrieve-msg');
+      const email = ((input || {}).value || '').trim();
+      if (!email) { if (msg) msg.textContent = 'Enter the email you used.'; return; }
+      if (msg) msg.textContent = 'Looking...';
+      retrieveBtn.disabled = true;
+      try {
+        const res  = await fetch('/api/my-assessment?email=' + encodeURIComponent(email));
+        const body = await res.json();
+        if (!res.ok) {
+          if (msg) msg.textContent = body.error || 'No saved results for that email.';
+          return;
+        }
+        showRetrievedAssessment(body.assessment);
+      } catch (err) {
+        if (msg) msg.textContent = 'Could not reach the server. Try again.';
+      } finally {
+        retrieveBtn.disabled = false;
+      }
+    });
+  }
+}
+
+// Restores enough state from a saved record to show the report and allow purchases.
+function showRetrievedAssessment(a) {
+  STATE.formData = Object.assign({}, STATE.formData, {
+    email:     a.email,
+    firstName: a.firstName,
+    lastName:  a.lastName,
+    birthday:  a.birthday || '',
+  });
+  STATE.reportData = Object.assign({}, STATE.reportData, {
+    id:     a.assessmentId,
+    pdfUrl: a.pdfUrl,
+  });
+
+  const name  = [a.firstName, a.lastName].filter(Boolean).join(' ') || 'there';
+  const saved = a.savedAt ? new Date(a.savedAt).toLocaleDateString() : null;
+
+  mount(`
+    <div class="screen-full">
+      <div class="inner">
+        <div class="intro-brand">Palm Beach Placements</div>
+        <h1 class="intro-headline">Welcome back, ${esc(name)}</h1>
+        <p class="intro-desc">We found your saved assessment${saved ? ` from ${esc(saved)}` : ''}.</p>
+        <div class="intro-receives">
+          <div class="intro-receives-title">Your Results</div>
+          <ul class="intro-receives-list">
+            ${a.discScores && a.discScores.dominant_type ? `<li>Primary DISC type: ${esc(a.discScores.dominant_type)}</li>` : ''}
+            ${a.mbtiType ? `<li>Type: ${esc(a.mbtiType)}</li>` : ''}
+            ${a.birthday ? `<li>Date of birth on file</li>` : `<li>No date of birth saved yet</li>`}
+          </ul>
+        </div>
+        ${a.pdfUrl
+          ? `<a href="${esc(a.pdfUrl)}" target="_blank" rel="noopener" class="btn-gold" style="display:inline-block;text-decoration:none;">Download My Report</a>`
+          : `<p style="color:rgba(255,255,255,.5);font-size:14px;">Your PDF is no longer available. Retake the assessment to generate a new one.</p>`}
+        <div style="margin-top:22px;">
+          <a href="#" id="btn-back-intro" style="color:rgba(255,255,255,.55);font-size:14px;text-decoration:underline;">Take the assessment again</a>
+        </div>
+      </div>
+    </div>
+  `);
+  const back = document.getElementById('btn-back-intro');
+  if (back) back.addEventListener('click', (e) => { e.preventDefault(); showIntro(); });
 }
 
 // =====================================================

@@ -116,6 +116,16 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
+    // ── Look up a saved assessment by email ──────────────────────────────────
+    if (url.pathname === "/api/my-assessment" && req.method === "GET") {
+      const email = (url.searchParams.get("email") || "").trim().toLowerCase();
+      if (!email) return send(res, 400, { error: "email required" });
+      const store = readJsonStore(ASSESSMENTS_BY_EMAIL);
+      const found = store[email];
+      if (!found) return send(res, 404, { error: "No saved assessment for that email." });
+      return send(res, 200, { ok: true, assessment: found });
+    }
+
     // ── Shopify order-paid webhook ───────────────────────────────────────────
     if (url.pathname === "/shopify/webhook/order-paid" && req.method === "POST") {
       const rawBody = await readBody(req);
