@@ -12,6 +12,7 @@ const { DISCLAIMER } = require("./src/report");
 const { runAssessment } = require("./src/pipeline");
 const { generateReport } = require("./src/firebase-report");
 const GEO = require("./src/geo");
+const store = require("./src/store");
 
 const PORT = process.env.PORT || 8787;
 const PUBLIC = path.join(__dirname, "public");
@@ -22,6 +23,9 @@ fs.mkdirSync(REPORTS, { recursive: true });
 // ---- JSON data stores -------------------------------------------------------
 const ASSESSMENTS_BY_EMAIL = path.join(DATA, "assessments-by-email.json");
 const PARTNER_INVITES      = path.join(DATA, "partner-invites.json");
+
+// Firestore when FIREBASE_SERVICE_ACCOUNT is set, local JSON files otherwise.
+store.init({ assessmentsPath: ASSESSMENTS_BY_EMAIL, invitesPath: PARTNER_INVITES });
 
 // Unambiguous alphabet: no O/0, I/1, so codes survive being read off a screen.
 function makeAccessCode() {
@@ -92,11 +96,9 @@ const server = http.createServer(async (req, res) => {
       }
       // Stable per-email access code, reused across retakes so an earlier PDF
       // keeps working. Generated before the run so it can be printed on the PDF.
-      const priorStore = readJsonStore(ASSESSMENTS_BY_EMAIL);
       const priorEmail = (body.person.email || "").toLowerCase();
-      const accessCode =
-        (priorEmail && priorStore[priorEmail] && priorStore[priorEmail].accessCode) ||
-        makeAccessCode();
+      const prior      = priorEmail ? await store.getAssessmentByEmail(priorEmail) : null;
+      const accessCode = (prior && prior.accessCode) || makeAccessCode();
 
       const result = await runAssessment({
         person: { ...body.person, accessCode },
@@ -129,16 +131,15 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req) || "{}");
       const { email } = body;
       if (!email) return send(res, 400, { error: "email required" });
-      const key   = email.toLowerCase();
-      const store = readJsonStore(ASSESSMENTS_BY_EMAIL);
+      const key      = email.toLowerCase();
+      const existing = await store.getAssessmentByEmail(key);
       // Prefer the code minted during /api/assess (it is the one printed on the
       // PDF), then any code already on file, and only mint as a last resort.
       const accessCode =
         body.accessCode ||
-        (store[key] && store[key].accessCode) ||
+        (existing && existing.accessCode) ||
         makeAccessCode();
-      store[key] = { ...body, accessCode, savedAt: new Date().toISOString() };
-      writeJsonStore(ASSESSMENTS_BY_EMAIL, store);
+      await store.saveAssessmentByEmail(key, { ...body, accessCode, savedAt: new Date().toISOString() });
       return send(res, 200, { ok: true, accessCode });
     }
 
@@ -148,8 +149,7 @@ const server = http.createServer(async (req, res) => {
       const code  = (url.searchParams.get("code")  || "").trim().toUpperCase();
       if (!email) return send(res, 400, { error: "email required" });
       if (!code)  return send(res, 400, { error: "access code required" });
-      const store = readJsonStore(ASSESSMENTS_BY_EMAIL);
-      const found = store[email];
+      const found = await store.getAssessmentByEmail(email);
       // Same response for unknown email and wrong code, so this cannot be used
       // to discover which email addresses have taken the assessment.
       if (!found || String(found.accessCode || "").toUpperCase() !== code) {
@@ -180,9 +180,8 @@ const server = http.createServer(async (req, res) => {
           const customerEmail = order.customer?.email?.toLowerCase();
           if (!customerEmail) return;
 
-          const lineItems  = order.line_items || [];
-          const assessments = readJsonStore(ASSESSMENTS_BY_EMAIL);
-          const assessment  = assessments[customerEmail];
+          const lineItems   = order.line_items || [];
+          const assessment  = await store.getAssessmentByEmail(customerEmail);
 
           for (const item of lineItems) {
             const handle    = item.handle || item.product_handle || "";
@@ -219,12 +218,10 @@ const server = http.createServer(async (req, res) => {
       const { fromEmail, fromName, partnerEmail, assessmentId } = body;
       if (!fromEmail || !partnerEmail) return send(res, 400, { error: "fromEmail and partnerEmail required" });
 
-      const store = readJsonStore(PARTNER_INVITES);
-      store[partnerEmail.toLowerCase()] = {
+      await store.savePartnerInvite(partnerEmail.toLowerCase(), {
         fromEmail, fromName, assessmentId,
         createdAt: new Date().toISOString(),
-      };
-      writeJsonStore(PARTNER_INVITES, store);
+      });
 
       // Build partner URL
       const host     = req.headers.host || `localhost:${PORT}`;
@@ -265,8 +262,7 @@ const server = http.createServer(async (req, res) => {
       const { email } = body;
       if (!email) return send(res, 400, { error: "email required" });
 
-      const invites     = readJsonStore(PARTNER_INVITES);
-      const assessments = readJsonStore(ASSESSMENTS_BY_EMAIL);
+      const invites = await store.getAllPartnerInvites();
 
       // Find any invite sent FROM this email (they invited someone else)
       const myInviteEntry = Object.entries(invites).find(
@@ -280,7 +276,7 @@ const server = http.createServer(async (req, res) => {
       if (myInviteEntry) {
         const [partnerEmail] = myInviteEntry;
         pendingInvite = true;
-        const partnerAssessment = assessments[partnerEmail.toLowerCase()];
+        const partnerAssessment = await store.getAssessmentByEmail(partnerEmail);
         if (partnerAssessment) {
           partnerCompleted = true;
           partnerName = [partnerAssessment.firstName, partnerAssessment.lastName]
