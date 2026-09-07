@@ -78,6 +78,62 @@ async function sendPurchaseEmail({ to, productTitle, downloadUrl, pdfPath, opts 
   if (pdfPath && fs.existsSync(pdfPath)) lines.push(`Your behavioral profile PDF is attached.`, ``);
   lines.push(`If you have any trouble opening this, just reply to this email.`);
 
+  // Branded HTML version. Table layout and inline styles, because email
+  // clients ignore stylesheets and modern CSS.
+  const NAVY = "#0F2744";
+  const GOLD = "#C5A95A";
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const button = downloadUrl ? `
+              <tr><td align="center" style="padding:8px 0 28px;">
+                <a href="${esc(downloadUrl)}"
+                   style="display:inline-block;background:${GOLD};color:${NAVY};text-decoration:none;
+                          font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:bold;
+                          letter-spacing:.04em;padding:14px 34px;border-radius:4px;">
+                  DOWNLOAD YOUR REPORT
+                </a>
+              </td></tr>` : "";
+  const attachNote = (pdfPath && fs.existsSync(pdfPath)) ? `
+              <tr><td style="padding:0 40px 20px;font-family:Helvetica,Arial,sans-serif;
+                            font-size:14px;color:#5A6472;">
+                Your behavioral profile PDF is attached to this email.
+              </td></tr>` : "";
+
+  const html = `<!doctype html>
+<html><body style="margin:0;padding:0;background:#F4F5F7;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+             style="max-width:560px;background:#FFFFFF;border-radius:6px;overflow:hidden;
+                    border:1px solid #E3E6EA;">
+        <tr><td style="background:${NAVY};padding:26px 40px;">
+          <div style="font-family:Helvetica,Arial,sans-serif;font-size:17px;font-weight:bold;
+                      letter-spacing:.14em;color:#FFFFFF;">PALM BEACH PLACEMENTS</div>
+        </td></tr>
+        <tr><td style="height:3px;background:${GOLD};"></td></tr>
+        <tr><td style="padding:34px 40px 10px;font-family:Helvetica,Arial,sans-serif;
+                      font-size:21px;font-weight:bold;color:${NAVY};">
+          Your ${esc(title)} is ready
+        </td></tr>
+        <tr><td style="padding:0 40px 24px;font-family:Helvetica,Arial,sans-serif;
+                      font-size:15px;line-height:1.6;color:#3D4753;">
+          Thank you for your purchase. Your personalized report has been generated
+          and is ready to view.
+        </td></tr>
+        ${button}
+        ${attachNote}
+        <tr><td style="padding:0 40px 30px;font-family:Helvetica,Arial,sans-serif;
+                      font-size:13px;line-height:1.6;color:#7A8494;">
+          Having trouble? Just reply to this email and we will help.
+        </td></tr>
+        <tr><td style="background:#FAFBFC;border-top:1px solid #E3E6EA;padding:16px 40px;
+                      font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#9AA3B0;">
+          Palm Beach Placements &middot; Confidential
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
   const attachments = pdfPath && fs.existsSync(pdfPath)
     ? [{ filename: pdfPath.split("/").pop(), path: pdfPath }] : [];
 
@@ -89,10 +145,12 @@ async function sendPurchaseEmail({ to, productTitle, downloadUrl, pdfPath, opts 
   });
 
   const info = await transporter.sendMail({
-    from,
+    from: opts.fromName === false ? from : `Palm Beach Placements <${from}>`,
     to,
+    replyTo: from,
     subject: `Your ${title} is ready`,
     text: lines.join("\n"),
+    html,
     attachments,
   });
   return { sent: true, to, id: info.messageId, attachments: attachments.length };
