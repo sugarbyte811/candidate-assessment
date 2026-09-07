@@ -11,7 +11,7 @@ const { QUESTIONS } = require("./src/questions");
 const { DISCLAIMER } = require("./src/report");
 const { runAssessment } = require("./src/pipeline");
 const { generateReport } = require("./src/firebase-report");
-const { sendReportEmails } = require("./src/delivery");
+const { sendReportEmails, sendPurchaseEmail } = require("./src/delivery");
 const GEO = require("./src/geo");
 const store = require("./src/store");
 
@@ -57,6 +57,151 @@ const PRODUCT_MAP = {
   "compatibility-report":    "compatibility_deep_dive",
   "business-partner-report": "compatibility_deep_dive",
 };
+
+// Shopify order webhooks do NOT include a product handle on line items, so a
+// handle-only lookup silently matched nothing and no report was ever built.
+// Variant id is the most reliable identifier present on the payload; title is
+// the human-readable fallback.
+const VARIANT_MAP = {
+  "45400241602742": "personal_year_forecast",
+  "45402285015222": "career_edge",
+  "45402285047990": "power_wealth_report",
+  "45402285080758": "compatibility_deep_dive",
+};
+
+const TITLE_MAP = {
+  "personal year forecast":        "personal_year_forecast",
+  "career edge report":            "career_edge",
+  "power and wealth report":       "power_wealth_report",
+  "power wealth report":           "power_wealth_report",
+  "you and your business partner": "compatibility_deep_dive",
+  "business partner report":       "compatibility_deep_dive",
+  "compatibility report":          "compatibility_deep_dive",
+};
+
+// Resolve a Pinnacle product id from a Shopify line item, trying every
+// identifier the payload might actually carry.
+function resolveProductId(item) {
+  if (!item) return null;
+  const variantId = String(item.variant_id || "");
+  if (VARIANT_MAP[variantId]) return VARIANT_MAP[variantId];
+
+  const handle = item.handle || item.product_handle || "";
+  if (handle && PRODUCT_MAP[handle]) return PRODUCT_MAP[handle];
+
+  const sku = String(item.sku || "").toLowerCase();
+  if (sku && PRODUCT_MAP[sku]) return PRODUCT_MAP[sku];
+
+  const title = String(item.title || item.name || "").toLowerCase().trim()
+    .replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "");
+  if (title && TITLE_MAP[title]) return TITLE_MAP[title];
+
+  return null;
+}
+
+// The buyer's address can arrive in several places depending on whether the
+// checkout was a guest checkout. Cart attributes carry the address captured
+// during the assessment, which is the one the report belongs to.
+function resolveOrderEmail(order) {
+  const attrs = {};
+  for (const a of order.note_attributes || []) {
+    if (a && a.name) attrs[a.name] = a.value;
+  }
+  return String(
+    attrs.assessment_email ||
+    order.email ||
+    order.contact_email ||
+    (order.customer && order.customer.email) ||
+    ""
+  ).toLowerCase() || null;
+}
+
+function resolveAssessmentId(order) {
+  for (const a of order.note_attributes || []) {
+    if (a && a.name === "assessment_id") return a.value;
+  }
+  return null;
+}
+
+// Generate and deliver every purchased report on an order. Returns a per-item
+// outcome so a failed delivery is visible instead of silently swallowed.
+async function fulfillOrder(order) {
+  const outcome = { order: order.name || order.id || "(unknown)", email: null, items: [] };
+
+  const customerEmail = resolveOrderEmail(order);
+  outcome.email = customerEmail;
+  if (!customerEmail) {
+    outcome.error = "No buyer email found on the order.";
+    console.error("[fulfill] no email on order", outcome.order);
+    return outcome;
+  }
+
+  const assessment   = await store.getAssessmentByEmail(customerEmail);
+  const assessmentId = resolveAssessmentId(order) ||
+    (assessment && assessment.assessmentId) || null;
+
+  // The behavioral PDF that was already generated for this person, if any.
+  let pdfPath = null;
+  if (assessmentId) {
+    const candidate = path.join(REPORTS, `${assessmentId}.pdf`);
+    if (fs.existsSync(candidate)) pdfPath = candidate;
+  }
+  if (!pdfPath && assessment && assessment.pdfUrl) {
+    const candidate = path.join(REPORTS, path.basename(assessment.pdfUrl));
+    if (fs.existsSync(candidate)) pdfPath = candidate;
+  }
+
+  for (const item of order.line_items || []) {
+    const productId = resolveProductId(item);
+    const entry = { title: item.title || item.name, variantId: item.variant_id, productId };
+
+    if (!productId) {
+      entry.status = "skipped: no product match";
+      console.error("[fulfill] unmatched line item", JSON.stringify(entry));
+      outcome.items.push(entry);
+      continue;
+    }
+
+    const personA = assessment ? {
+      name:      [assessment.firstName, assessment.lastName].filter(Boolean).join(" "),
+      birthdate: assessment.birthday || null,
+    } : null;
+
+    const discProfile = (assessment && productId === "career_edge")
+      ? assessment.discScores || null
+      : null;
+
+    let generated = null;
+    try {
+      generated = await generateReport({ productId, personA, discProfile, customerEmail });
+      entry.generated = generated ? { reportId: generated.reportId, hasUrl: !!generated.downloadUrl } : null;
+    } catch (e) {
+      entry.generated = null;
+      entry.generateError = e.message;
+      console.error(`[fulfill] generation failed for ${productId}:`, e.message);
+    }
+
+    // Deliver whatever we have. A generation failure must not also mean silence.
+    try {
+      const mail = await sendPurchaseEmail({
+        to: customerEmail,
+        productTitle: (generated && generated.title) || item.title || productId,
+        downloadUrl: generated && generated.downloadUrl,
+        pdfPath,
+      });
+      entry.email = mail;
+      entry.status = mail.sent ? "delivered" : `not delivered: ${mail.reason}`;
+      console.log(`[fulfill] ${productId} -> ${customerEmail}: ${entry.status}`);
+    } catch (e) {
+      entry.status = `email failed: ${e.message}`;
+      console.error(`[fulfill] email failed for ${customerEmail}:`, e.message);
+    }
+
+    outcome.items.push(entry);
+  }
+
+  return outcome;
+}
 
 const send = (res, code, body, type = "application/json") => {
   res.writeHead(code, { "Content-Type": type, "Access-Control-Allow-Origin": "*" });
@@ -244,39 +389,30 @@ const server = http.createServer(async (req, res) => {
       setImmediate(async () => {
         try {
           const order = JSON.parse(rawBody || "{}");
-          const customerEmail = order.customer?.email?.toLowerCase();
-          if (!customerEmail) return;
-
-          const lineItems   = order.line_items || [];
-          const assessment  = await store.getAssessmentByEmail(customerEmail);
-
-          for (const item of lineItems) {
-            const handle    = item.handle || item.product_handle || "";
-            const productId = PRODUCT_MAP[handle];
-            if (!productId) continue;
-
-            const personA = assessment ? {
-              name:      [assessment.firstName, assessment.lastName].filter(Boolean).join(" "),
-              birthdate: assessment.birthday || null,
-            } : null;
-
-            const discProfile = (assessment && productId === "career_edge")
-              ? assessment.discScores || null
-              : null;
-
-            try {
-              const result = await generateReport({ productId, personA, discProfile, customerEmail });
-              console.log(`[shopify] Generated ${productId} for ${customerEmail}:`, result);
-            } catch (e) {
-              console.error(`[shopify] Failed to generate ${productId} for ${customerEmail}:`, e.message);
-            }
-          }
+          await fulfillOrder(order);
         } catch (e) {
           console.error("[shopify] Webhook processing error:", e.message);
         }
       });
 
       return; // response already sent
+    }
+
+    // ── Re-deliver an order that failed to reach the buyer ─────────────────
+    // Protected by ADMIN_TOKEN. Accepts the same order shape Shopify sends, so
+    // a purchase that fell through can be replayed without a new checkout.
+    if (url.pathname === "/api/admin/fulfill" && req.method === "POST") {
+      const expected = process.env.ADMIN_TOKEN;
+      if (!expected) return send(res, 503, { error: "ADMIN_TOKEN is not configured on this server." });
+      if ((req.headers["x-admin-token"] || "") !== expected) return send(res, 403, { error: "Forbidden" });
+
+      const order = JSON.parse(await readBody(req) || "{}");
+      try {
+        const outcome = await fulfillOrder(order);
+        return send(res, 200, { ok: true, outcome });
+      } catch (e) {
+        return send(res, 500, { error: e.message });
+      }
     }
 
     // ── Partner invite ───────────────────────────────────────────────────────

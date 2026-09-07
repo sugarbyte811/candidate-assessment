@@ -59,13 +59,14 @@
       flex-direction: column;
     }
 
-    /* ===== STICKY HEADER ===== */
+    /* ===== PAGE HEADER =====
+       Scrolls away with the page instead of hovering. It used to be
+       position:sticky, which kept a bar pinned over the content the whole
+       way down the assessment. */
     .sticky-header {
-      position: sticky;
-      top: 0;
+      position: static;
       background: var(--white);
       border-bottom: 1px solid var(--border);
-      z-index: 100;
     }
     .sticky-header-inner {
       max-width: 720px;
