@@ -248,8 +248,29 @@ function deterministicNarrative(profile) {
   const num = profile.numerology;
   const ast = profile.astrology;
 
+  // Trait keys are internal identifiers, so give each one a reader-facing
+  // label. Printing the raw camelCase key made the report look unfinished.
+  const TRAIT_LABELS = {
+    decisionSpeed:   "Decisive under time pressure",
+    extraversion:    "Energised by people and momentum",
+    dominance:       "Takes ownership and drives outcomes",
+    independence:    "Works autonomously without hand-holding",
+    conscientious:   "Thorough and detail-disciplined",
+    steadiness:      "Steady and dependable under pressure",
+    influence:       "Persuasive and naturally motivating",
+    compliance:      "Structured and standards-driven",
+    adaptability:    "Adapts quickly when conditions change",
+    riskTolerance:   "Comfortable making calls without certainty",
+    collaboration:   "Builds strong working relationships",
+    analytical:      "Reasons carefully from evidence",
+  };
+  const humanizeTrait = (k) =>
+    TRAIT_LABELS[k] ||
+    String(k).replace(/([a-z])([A-Z])/g, "$1 $2")
+             .replace(/^./, (c) => c.toUpperCase());
+
   const strengths = Object.entries(b.traits)
-    .sort((x, y) => y[1] - x[1]).slice(0, 4).map(([k]) => k);
+    .sort((x, y) => y[1] - x[1]).slice(0, 4).map(([k]) => humanizeTrait(k));
 
   const numLine = num && num.available
     ? `Life Path ${num.lifePath} (${NUMBER_MEANING[num.lifePath] || "core themes"})`

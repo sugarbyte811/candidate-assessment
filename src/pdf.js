@@ -15,13 +15,14 @@ const MARGIN    = 56;
 const CONTENT_W = PAGE_W - 2 * MARGIN;
 
 // ---- Palette ---------------------------------------------------------------
-const GOLD       = "#C5A95A";
-const NAVY       = "#0F2744";
-const DARK       = "#111111";
-const BODY_COLOR = "#333333";
-const MUTED      = "#666666";
-const VERY_MUTED = "#999999";
-const RULE_COLOR = "#CCCCCC";
+const BACKGROUND = "#09081a";  // paid report background
+const GOLD       = "#D4AF37";
+const NAVY       = "#e2d4ff";  // primary heading text on dark
+const DARK       = "#e2d4ff";
+const BODY_COLOR = "#c4b2e8";
+const MUTED      = "#7a6d9a";
+const VERY_MUTED = "#4e4470";
+const RULE_COLOR = "#1e1a36";
 
 // ---- Layout constants ------------------------------------------------------
 const HEADER_Y       = 24;   // top of running page header text
@@ -114,8 +115,15 @@ function drawFooter(doc, pageNum) {
 }
 
 // Start a fresh content page with the cursor below the header band.
+function paintBackground(doc) {
+  doc.save();
+  doc.rect(0, 0, PAGE_W, PAGE_H).fill(BACKGROUND);
+  doc.restore();
+}
+
 function startContentPage(doc) {
   doc.addPage();
+  paintBackground(doc);
   doc.y = CONTENT_START;
 }
 
@@ -157,6 +165,8 @@ async function renderPdf(report, outPath) {
     // ========================================================
     // PAGE 1 - COVER
     // ========================================================
+
+    paintBackground(doc);
 
     // Top gold rule (bleeds to edge, ignores margin)
     doc.rect(0, 0, PAGE_W, 8).fill(GOLD);
@@ -275,6 +285,7 @@ async function renderPdf(report, outPath) {
     // ========================================================
     if (!isBlank(report.disclaimer)) {
       doc.addPage();
+      paintBackground(doc);
 
       doc.font("Helvetica-Bold").fontSize(10).fillColor(MUTED)
         .text("METHODOLOGY & DISCLAIMER", MARGIN, MARGIN + 24, {
