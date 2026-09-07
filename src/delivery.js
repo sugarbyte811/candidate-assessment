@@ -1,4 +1,4 @@
-// Phase 6b — Email delivery + Firestore storage. Both have safe dry-run
+// Phase 6b - Email delivery + Firestore storage. Both have safe dry-run
 // fallbacks so the full pipeline runs (and tests) offline with zero spend.
 
 const fs = require("fs");
@@ -9,7 +9,7 @@ const fs = require("fs");
 async function sendReportEmails({ report, pdf, participantEmail, adminEmail, opts = {} }) {
   const from = opts.from || process.env.MAIL_FROM || "no-reply@palmbeachplacements.com";
   const admin = adminEmail || process.env.ADMIN_EMAIL;
-  const subject = `Candidate Assessment — ${report.meta.name}`;
+  const subject = `Candidate Assessment - ${report.meta.name}`;
   const bodyText =
     `Attached is the completed candidate assessment for ${report.meta.name}.\n\n` +
     `Archetype: ${report.meta.archetype}\nGenerated: ${report.meta.createdAt}\n\n` +

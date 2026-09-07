@@ -1,4 +1,6 @@
-// Phase 6a — PDF generation. Renders the report to a styled 6-page PDF.
+// Phase 6a - PDF generation. Renders the report to a styled PDF: a cover page,
+// content sections packed onto as few pages as the text needs, then the
+// disclaimer. Empty sections and empty fields are skipped entirely.
 // Uses pdfkit (pure JS, no headless browser) to keep cost/deps minimal.
 // If pdfkit is not installed, falls back to writing an .html file so the
 // pipeline still produces a deliverable artifact in any environment.
@@ -26,8 +28,6 @@ const HEADER_Y       = 24;   // top of running page header text
 const CONTENT_START  = 66;   // y where body content begins on content pages
 const FOOTER_LINE_Y  = PAGE_H - 50;  // where the footer rule is drawn
 const FOOTER_TEXT_Y  = FOOTER_LINE_Y + 7;
-// Guard: if the cursor reaches this y, start a new page before rendering next field
-const PAGE_BREAK_AT  = FOOTER_LINE_Y - 40;
 
 // ---- HTML fallback ---------------------------------------------------------
 function reportToHtml(report) {
@@ -61,12 +61,42 @@ function reportToHtml(report) {
 
 // ---- PDF helpers -----------------------------------------------------------
 
-// Draw the running header (name, right-aligned, very muted) and reset cursor.
+// Anything drawn below (PAGE_H - bottom margin) is treated by pdfkit as content
+// overflowing the writable area, so it silently starts a new page to hold it.
+// Header and footer text live in the margin bands on purpose, so the bottom
+// margin is zeroed for the duration of those draws and then restored. Without
+// this, every footer emitted one blank page per text call.
+function drawInMarginBand(doc, fn) {
+  const prevBottom = doc.page.margins.bottom;
+  const prevY      = doc.y;
+  doc.page.margins.bottom = 0;
+  try { fn(); }
+  finally {
+    doc.page.margins.bottom = prevBottom;
+    doc.y = prevY;
+  }
+}
+
+// True when a field carries nothing worth printing. Empty fields would
+// otherwise render an orphan label with no body under it.
+function isBlank(v) {
+  if (v === null || v === undefined) return true;
+  if (Array.isArray(v)) return v.filter((x) => String(x ?? "").trim() !== "").length === 0;
+  return String(v).trim() === "";
+}
+
+// The printable fields of a report page, title excluded.
+function contentFields(pageData) {
+  if (!pageData || typeof pageData !== "object") return [];
+  return Object.entries(pageData).filter(([k, v]) => k !== "title" && !isBlank(v));
+}
+
+// Draw the running header (name, right-aligned, very muted).
 function drawHeader(doc, displayName) {
-  doc.font("Helvetica").fontSize(8).fillColor(VERY_MUTED)
-    .text(displayName, MARGIN, HEADER_Y, { width: CONTENT_W, align: "right" });
-  // Restore cursor to content start
-  doc.y = CONTENT_START;
+  drawInMarginBand(doc, () => {
+    doc.font("Helvetica").fontSize(8).fillColor(VERY_MUTED)
+      .text(displayName, MARGIN, HEADER_Y, { width: CONTENT_W, align: "right" });
+  });
 }
 
 // Draw the footer rule + left/right text at fixed bottom position.
@@ -75,19 +105,18 @@ function drawFooter(doc, pageNum) {
     .lineTo(PAGE_W - MARGIN, FOOTER_LINE_Y)
     .lineWidth(0.5).strokeColor(RULE_COLOR).stroke();
 
-  doc.font("Helvetica").fontSize(8).fillColor(VERY_MUTED)
-    .text("Palm Beach Placements \u00b7 Confidential", MARGIN, FOOTER_TEXT_Y, { width: CONTENT_W });
-  // Right-align page number in the same band
-  doc.text(String(pageNum), MARGIN, FOOTER_TEXT_Y, { width: CONTENT_W, align: "right" });
+  drawInMarginBand(doc, () => {
+    doc.font("Helvetica").fontSize(8).fillColor(VERY_MUTED)
+      .text("Palm Beach Placements \u00b7 Confidential", MARGIN, FOOTER_TEXT_Y, { width: CONTENT_W });
+    // Right-align page number in the same band
+    doc.text(String(pageNum), MARGIN, FOOTER_TEXT_Y, { width: CONTENT_W, align: "right" });
+  });
 }
 
-// If cursor is too close to the footer, add a continuation page.
-function maybeBreak(doc, displayName, pdfPageNumRef) {
-  if (doc.y > PAGE_BREAK_AT) {
-    drawFooter(doc, pdfPageNumRef.num++);
-    doc.addPage();
-    drawHeader(doc, displayName);
-  }
+// Start a fresh content page with the cursor below the header band.
+function startContentPage(doc) {
+  doc.addPage();
+  doc.y = CONTENT_START;
 }
 
 // ---- Main PDF renderer -----------------------------------------------------
@@ -118,24 +147,27 @@ async function renderPdf(report, outPath) {
   })() : "";
 
   await new Promise((resolve, reject) => {
-    const doc    = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true });
+    // bufferPages lets the header/footer be stamped on every page in a single
+    // pass at the end, so numbering stays sequential no matter how many
+    // continuation pages the flowing content needed.
+    const doc    = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true, bufferPages: true });
     const stream = fs.createWriteStream(outPath);
     doc.pipe(stream);
 
     // ========================================================
-    // PAGE 1 — COVER
+    // PAGE 1 - COVER
     // ========================================================
 
     // Top gold rule (bleeds to edge, ignores margin)
     doc.rect(0, 0, PAGE_W, 8).fill(GOLD);
 
-    // Title label — tracked caps
+    // Title label - tracked caps
     doc.font("Helvetica").fontSize(11).fillColor(BODY_COLOR)
       .text("BEHAVIORAL PROFILE ASSESSMENT", MARGIN, 228, {
         width: CONTENT_W, align: "center", characterSpacing: 2,
       });
 
-    // Participant name — serif, large
+    // Participant name - serif, large
     doc.moveDown(2.4);
     doc.font("Times-Roman").fontSize(28).fillColor(DARK)
       .text(displayName, { width: CONTENT_W, align: "center" });
@@ -152,7 +184,7 @@ async function renderPdf(report, outPath) {
         .text(`Completed ${dateStr}`, { width: CONTENT_W, align: "center" });
     }
 
-    // Access code — needed to retrieve these results later, so make it findable.
+    // Access code - needed to retrieve these results later, so make it findable.
     if (accessCode) {
       doc.moveDown(2.2);
       doc.font("Helvetica").fontSize(9).fillColor(MUTED)
@@ -166,76 +198,107 @@ async function renderPdf(report, outPath) {
           { width: CONTENT_W, align: "center" });
     }
 
-    // Company name — very muted, near bottom
-    doc.font("Helvetica").fontSize(9).fillColor("#BBBBBB")
-      .text("PALM BEACH PLACEMENTS", MARGIN, PAGE_H - 52, {
-        width: CONTENT_W, align: "center", characterSpacing: 2,
-      });
+    // Company name - very muted, near bottom. Sits inside the bottom margin
+    // band, so it must not be allowed to trigger an implicit page break.
+    drawInMarginBand(doc, () => {
+      doc.font("Helvetica").fontSize(9).fillColor("#BBBBBB")
+        .text("PALM BEACH PLACEMENTS", MARGIN, PAGE_H - 52, {
+          width: CONTENT_W, align: "center", characterSpacing: 2,
+        });
+    });
 
     // Bottom gold rule (4px, bleeds to edge)
     doc.rect(0, PAGE_H - 16, PAGE_W, 16).fill(GOLD);
 
     // ========================================================
-    // PAGES 2–5 — CONTENT PAGES
+    // CONTENT PAGES - sections flow continuously
     // ========================================================
-    const pdfPageNumRef = { num: 2 };
+    // Sections are packed onto as few pages as the text needs. A new page is
+    // started only when there is genuinely no room left, instead of forcing
+    // one PDF page per report section.
+    const BOTTOM_LIMIT = PAGE_H - MARGIN;  // last y that content may occupy
+    const TITLE_ROOM   = 96;               // space a section title plus opening lines needs
+    const LABEL_ROOM   = 46;               // space a field label plus one line needs
 
-    for (const i of Object.keys(report.pages)) {
-      const pageData = report.pages[i];
-      doc.addPage();
-      drawHeader(doc, displayName);
+    const sections = Object.keys(report.pages)
+      .map((i) => report.pages[i])
+      .filter((p) => contentFields(p).length > 0);
+
+    let started = false;
+    for (const pageData of sections) {
+      if (!started) {
+        startContentPage(doc);
+        started = true;
+      } else if (doc.y > BOTTOM_LIMIT - TITLE_ROOM) {
+        startContentPage(doc);
+      } else {
+        doc.moveDown(1.2);
+      }
 
       // Section title
       doc.font("Helvetica-Bold").fontSize(14).fillColor(NAVY)
-        .text(pageData.title, MARGIN, doc.y);
+        .text(pageData.title, MARGIN, doc.y, { width: CONTENT_W });
       doc.moveDown(0.7);
 
-      // Fields
-      for (const [k, v] of Object.entries(pageData)) {
-        if (k === "title") continue;
+      for (const [k, v] of contentFields(pageData)) {
+        // Never leave a label stranded at the very bottom of a page
+        if (doc.y > BOTTOM_LIMIT - LABEL_ROOM) startContentPage(doc);
 
-        maybeBreak(doc, displayName, pdfPageNumRef);
-
-        // Field label — small caps style
+        // Field label - small caps style
         const label = k
           .replace(/([A-Z])/g, " $1")
           .replace(/^./, (c) => c.toUpperCase());
         doc.font("Helvetica-Bold").fontSize(8.5).fillColor(MUTED)
-          .text(label.toUpperCase(), { characterSpacing: 0.6 });
+          .text(label.toUpperCase(), MARGIN, doc.y, { width: CONTENT_W, characterSpacing: 0.6 });
         doc.moveDown(0.15);
 
         // Field body
         doc.font("Helvetica").fontSize(10).fillColor(BODY_COLOR);
         if (Array.isArray(v)) {
           // Numbered list (interview questions, strengths, etc.)
-          v.forEach((item, idx) => {
-            doc.text(`${idx + 1}.\u2002${item}`, { lineGap: 3 });
-            doc.moveDown(0.25);
-          });
+          v.filter((item) => String(item ?? "").trim() !== "")
+            .forEach((item, idx) => {
+              doc.text(`${idx + 1}.\u2002${String(item).trim()}`, MARGIN, doc.y, {
+                width: CONTENT_W, lineGap: 3,
+              });
+              doc.moveDown(0.25);
+            });
         } else {
-          doc.text(String(v ?? ""), { lineGap: 3 });
+          doc.text(String(v).trim(), MARGIN, doc.y, { width: CONTENT_W, lineGap: 3 });
         }
         doc.moveDown(0.5);
       }
-
-      drawFooter(doc, pdfPageNumRef.num++);
     }
 
     // ========================================================
-    // PAGE 6 — DISCLAIMER
+    // DISCLAIMER - final page
     // ========================================================
-    doc.addPage();
+    if (!isBlank(report.disclaimer)) {
+      doc.addPage();
 
-    doc.font("Helvetica-Bold").fontSize(10).fillColor(MUTED)
-      .text("METHODOLOGY & DISCLAIMER", MARGIN, MARGIN + 24, {
-        width: CONTENT_W, align: "center", characterSpacing: 1.5,
-      });
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(MUTED)
+        .text("METHODOLOGY & DISCLAIMER", MARGIN, MARGIN + 24, {
+          width: CONTENT_W, align: "center", characterSpacing: 1.5,
+        });
 
-    doc.moveDown(1.8);
-    doc.font("Helvetica").fontSize(9).fillColor(VERY_MUTED)
-      .text(report.disclaimer, MARGIN, null, {
-        width: CONTENT_W, align: "justify", lineGap: 3,
-      });
+      doc.moveDown(1.8);
+      doc.font("Helvetica").fontSize(9).fillColor(VERY_MUTED)
+        .text(String(report.disclaimer).trim(), MARGIN, doc.y, {
+          width: CONTENT_W, align: "justify", lineGap: 3,
+        });
+    }
+
+    // ========================================================
+    // Stamp header and footer on every page except the cover
+    // ========================================================
+    const range = doc.bufferedPageRange();
+    let pageNum = 2;
+    for (let i = range.start + 1; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      drawHeader(doc, displayName);
+      drawFooter(doc, pageNum++);
+    }
+    doc.flushPages();
 
     doc.end();
     stream.on("finish", resolve);

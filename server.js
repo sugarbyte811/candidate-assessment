@@ -1,7 +1,7 @@
 // Demo web server. Pure Node http, no framework. Serves the intake form and
 // runs the assessment pipeline. Reports + PDFs are written under ./data and
 // served back for download. Runs in dry-run mode (no email/Firestore) unless
-// env keys are set — perfect for a shareable demo link.
+// env keys are set - perfect for a shareable demo link.
 
 const http = require("http");
 const fs = require("fs");
@@ -11,6 +11,7 @@ const { QUESTIONS } = require("./src/questions");
 const { DISCLAIMER } = require("./src/report");
 const { runAssessment } = require("./src/pipeline");
 const { generateReport } = require("./src/firebase-report");
+const { sendReportEmails } = require("./src/delivery");
 const GEO = require("./src/geo");
 const store = require("./src/store");
 
@@ -156,6 +157,72 @@ const server = http.createServer(async (req, res) => {
         return send(res, 403, { error: "That email and access code do not match." });
       }
       return send(res, 200, { ok: true, assessment: found });
+    }
+
+    // ── Email a copy of the report to the participant ─────────────────────
+    if (url.pathname === "/api/email-report" && req.method === "POST") {
+      const body  = JSON.parse(await readBody(req) || "{}");
+      const email = String(body.email || "").trim().toLowerCase();
+      const code  = String(body.accessCode || "").trim().toUpperCase();
+      if (!email) return send(res, 400, { error: "email required" });
+      if (!code)  return send(res, 400, { error: "access code required" });
+
+      const found = await store.getAssessmentByEmail(email);
+      // Same response for unknown email and wrong code, so this cannot be used
+      // to discover which email addresses have taken the assessment.
+      if (!found || String(found.accessCode || "").toUpperCase() !== code) {
+        return send(res, 403, { error: "That email and access code do not match." });
+      }
+
+      // Locate the PDF that was already generated for this assessment.
+      const pdfName =
+        (found.pdfUrl ? path.basename(found.pdfUrl) : null) ||
+        (found.assessmentId ? `${found.assessmentId}.pdf` : null);
+      const pdfPath = pdfName ? path.join(REPORTS, pdfName) : null;
+      if (!pdfPath || !fs.existsSync(pdfPath)) {
+        return send(res, 404, { error: "No report PDF found for that assessment. Retake or regenerate it first." });
+      }
+
+      // Refuse to imply delivery when the mailer is not configured.
+      const smtpReady = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+      if (!smtpReady) {
+        return send(res, 503, {
+          error: "Email delivery is not configured on this server, so nothing was sent.",
+          configured: false,
+          missing: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter((k) => !process.env[k]),
+        });
+      }
+
+      const displayName =
+        [found.firstName, found.lastName].filter(Boolean).join(" ") || email;
+      // sendReportEmails only reads meta.name, meta.archetype, meta.createdAt
+      // and disclaimer, so a minimal report object is enough for a resend.
+      const reportForEmail = {
+        meta: {
+          name:      displayName,
+          archetype: found.archetype || (found.discScores && found.discScores.dominant_type) || "",
+          createdAt: found.savedAt || found.createdAt || new Date().toISOString(),
+        },
+        disclaimer: DISCLAIMER,
+      };
+
+      try {
+        const result = await sendReportEmails({
+          report: reportForEmail,
+          pdf: { path: pdfPath, format: "pdf" },
+          participantEmail: email,
+          // A user-initiated resend goes to the participant only.
+          adminEmail: null,
+        });
+        const delivered = result.results.some((r) => r.sent);
+        if (!delivered) {
+          return send(res, 502, { error: "The mail server accepted no recipients, so nothing was sent.", configured: true });
+        }
+        return send(res, 200, { ok: true, sent: true, to: email, attachments: result.attachments });
+      } catch (e) {
+        console.error("[email-report] send failed:", e.message);
+        return send(res, 502, { error: `Email send failed: ${e.message}`, configured: true });
+      }
     }
 
     // ── Shopify order-paid webhook ───────────────────────────────────────────

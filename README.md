@@ -41,6 +41,27 @@ email participant + admin → store (Firestore or local, deduped by inputHash).
 
 - **AI (optional):** `AI_API_KEY`, `AI_BASE_URL` (default OpenAI), `AI_MODEL` (default gpt-4o-mini). No key → deterministic narrative, $0.
 - **Email (optional):** `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `ADMIN_EMAIL`. No SMTP → dry-run.
+
+### Emailing a report to the participant
+
+`POST /api/email-report` with `{ "email": "...", "accessCode": "..." }` mails the
+already-generated PDF to the participant. The "Email me my report" button on the
+results screen calls it.
+
+Responses are deliberately honest about delivery:
+
+| Status | Meaning |
+|---|---|
+| 200 | Mail server accepted the message, PDF attached |
+| 400 | Missing email or access code |
+| 403 | Email and access code do not match |
+| 404 | No generated PDF found for that assessment |
+| 503 | `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` not set, so nothing was sent |
+| 502 | Mail server rejected the send |
+
+All six SMTP variables are declared in `render.yaml` with `sync: false`, so set
+the real values in the Render dashboard. Nothing is sent until they exist, and
+the UI never claims a delivery that did not happen.
 - **Storage (optional):** `GOOGLE_APPLICATION_CREDENTIALS` for Firestore. No creds → local JSON store.
 
 All external steps degrade gracefully to a dry-run so the whole thing is
@@ -59,4 +80,4 @@ endorsed by, or a substitute for** the official MBTI®, DISC, or Predictive
 Index® assessments. Astrology/numerology are interpretive context only. Do not
 use as the sole basis for an employment decision; behavioral results are the
 only decision-relevant component. Personality/astrology-based hiring carries
-EEOC / disparate-impact risk — get legal review before production hiring use.
+EEOC / disparate-impact risk - get legal review before production hiring use.
