@@ -174,7 +174,9 @@ async function fulfillOrder(order) {
     let generated = null;
     try {
       generated = await generateReport({ productId, personA, discProfile, customerEmail });
-      entry.generated = generated ? { reportId: generated.reportId, hasUrl: !!generated.downloadUrl } : null;
+      entry.generated = generated
+        ? { reportId: generated.reportId, title: generated.title, downloadUrl: generated.downloadUrl }
+        : null;
     } catch (e) {
       entry.generated = null;
       entry.generateError = e.message;
