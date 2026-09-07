@@ -98,7 +98,7 @@ async function sendPurchaseEmail({ to, productTitle, downloadUrl, pdfPath, opts 
                 Your behavioral profile PDF is attached to this email.
               </td></tr>` : "";
 
-  const html = `<!doctype html>
+  const htmlUnused = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#F4F5F7;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:32px 12px;">
     <tr><td align="center">
@@ -137,6 +137,24 @@ async function sendPurchaseEmail({ to, productTitle, downloadUrl, pdfPath, opts 
   const attachments = pdfPath && fs.existsSync(pdfPath)
     ? [{ filename: pdfPath.split("/").pop(), path: pdfPath }] : [];
 
+  // Attach the generated report itself rather than making the buyer click a
+  // link. A raw storage URL looks like spam and gets flagged as unverified.
+  if (downloadUrl) {
+    try {
+      const res = await fetch(downloadUrl);
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        attachments.push({
+          filename: `${title.replace(/[^A-Za-z0-9 ]/g, "").trim() || "Report"}.pdf`,
+          content: buf,
+          contentType: "application/pdf",
+        });
+      }
+    } catch (e) {
+      console.error("[email] could not attach report:", e.message);
+    }
+  }
+
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),
@@ -149,8 +167,9 @@ async function sendPurchaseEmail({ to, productTitle, downloadUrl, pdfPath, opts 
     to,
     replyTo: from,
     subject: `Your ${title} is ready`,
-    text: lines.join("\n"),
-    html,
+    text: `Thank you for your order.\n\nYour ${title} is attached.`,
+    html: `<div style="font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#3D4753;">`
+        + `<p>Thank you for your order.</p><p>Your ${esc(title)} is attached.</p></div>`,
     attachments,
   });
   return { sent: true, to, id: info.messageId, attachments: attachments.length };
