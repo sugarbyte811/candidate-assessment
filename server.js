@@ -162,10 +162,23 @@ async function fulfillOrder(order) {
       continue;
     }
 
-    const personA = assessment ? {
-      name:      [assessment.firstName, assessment.lastName].filter(Boolean).join(" "),
-      birthdate: assessment.birthday || null,
-    } : null;
+    // The Pinnacle backend requires full_name and birthdate as YYYY-MM-DD.
+    // Sending `name` produced a 400 on every single order.
+    const override = order.person_a || {};
+    const fullName = override.full_name ||
+      (assessment ? [assessment.firstName, assessment.lastName].filter(Boolean).join(" ") : "");
+    const birthdate = override.birthdate || (assessment && assessment.birthday) || null;
+    const personA = (fullName && birthdate)
+      ? { full_name: fullName, birthdate }
+      : null;
+
+    if (!personA) {
+      entry.status = "skipped: missing name or birthdate for this buyer";
+      entry.lookedUp = { assessmentFound: !!assessment, fullName: fullName || null, birthdate };
+      console.error("[fulfill] cannot build person_a", JSON.stringify(entry.lookedUp));
+      outcome.items.push(entry);
+      continue;
+    }
 
     const discProfile = (assessment && productId === "career_edge")
       ? assessment.discScores || null
