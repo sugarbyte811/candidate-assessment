@@ -10,3 +10,18 @@ services:
         generateValue: false
       - key: NODE_ENV
         value: production
+      # Email delivery. Values are set in the Render dashboard, never committed.
+      # Without SMTP_HOST, SMTP_USER and SMTP_PASS, /api/email-report returns
+      # 503 and the UI reports that nothing was sent.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false

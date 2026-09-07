@@ -1,4 +1,4 @@
-// Phase 6b — Email delivery + Firestore storage. Both have safe dry-run
+// Phase 6b - Email delivery + Firestore storage. Both have safe dry-run
 // fallbacks so the full pipeline runs (and tests) offline with zero spend.
 
 const fs = require("fs");
@@ -9,7 +9,7 @@ const fs = require("fs");
 async function sendReportEmails({ report, pdf, participantEmail, adminEmail, opts = {} }) {
   const from = opts.from || process.env.MAIL_FROM || "no-reply@palmbeachplacements.com";
   const admin = adminEmail || process.env.ADMIN_EMAIL;
-  const subject = `Candidate Assessment — ${report.meta.name}`;
+  const subject = `Candidate Assessment - ${report.meta.name}`;
   const bodyText =
     `Attached is the completed candidate assessment for ${report.meta.name}.\n\n` +
     `Archetype: ${report.meta.archetype}\nGenerated: ${report.meta.createdAt}\n\n` +
@@ -49,6 +49,53 @@ async function sendReportEmails({ report, pdf, participantEmail, adminEmail, opt
     }
   }
   return { sent: !!transporter, from, subject, attachments: attachments.length, results };
+}
+
+// ---- Purchase fulfilment email ---------------------------------------------
+// Sent to whoever bought a report. Returns a result object describing exactly
+// what happened; it never reports success for a message it did not send.
+async function sendPurchaseEmail({ to, productTitle, downloadUrl, pdfPath, opts = {} }) {
+  const from = opts.from || process.env.MAIL_FROM || "no-reply@palmbeachplacements.com";
+  if (!to) return { sent: false, reason: "no recipient address" };
+
+  const smtpReady = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+  if (!smtpReady) {
+    return { sent: false, reason: "SMTP not configured", missing: ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"].filter((k) => !process.env[k]) };
+  }
+
+  let nodemailer;
+  try { nodemailer = require("nodemailer"); }
+  catch { return { sent: false, reason: "nodemailer not installed" }; }
+
+  const title = productTitle || "your report";
+  const lines = [
+    `Thank you for your purchase.`,
+    ``,
+    `Your ${title} is ready.`,
+    ``,
+  ];
+  if (downloadUrl) lines.push(`Download it here:`, downloadUrl, ``);
+  if (pdfPath && fs.existsSync(pdfPath)) lines.push(`Your behavioral profile PDF is attached.`, ``);
+  lines.push(`If you have any trouble opening this, just reply to this email.`);
+
+  const attachments = pdfPath && fs.existsSync(pdfPath)
+    ? [{ filename: pdfPath.split("/").pop(), path: pdfPath }] : [];
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: Number(process.env.SMTP_PORT) === 465,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  });
+
+  const info = await transporter.sendMail({
+    from,
+    to,
+    subject: `Your ${title} is ready`,
+    text: lines.join("\n"),
+    attachments,
+  });
+  return { sent: true, to, id: info.messageId, attachments: attachments.length };
 }
 
 // ---- Firestore storage with dedupe -----------------------------------------
@@ -99,7 +146,7 @@ async function storeAssessment({ profile, report, opts = {} }) {
   return { stored: true, reused: false, id: key, backend: "local" };
 }
 
-module.exports = { sendReportEmails, storeAssessment, peekStored };
+module.exports = { sendReportEmails, sendPurchaseEmail, storeAssessment, peekStored };
 
 // Read-only existence check for dedupe (does NOT write).
 async function peekStored(profile, opts = {}) {

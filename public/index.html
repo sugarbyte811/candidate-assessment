@@ -59,13 +59,14 @@
       flex-direction: column;
     }
 
-    /* ===== STICKY HEADER ===== */
+    /* ===== PAGE HEADER =====
+       Scrolls away with the page instead of hovering. It used to be
+       position:sticky, which kept a bar pinned over the content the whole
+       way down the assessment. */
     .sticky-header {
-      position: sticky;
-      top: 0;
+      position: static;
       background: var(--white);
       border-bottom: 1px solid var(--border);
-      z-index: 100;
     }
     .sticky-header-inner {
       max-width: 720px;
@@ -1571,7 +1572,8 @@ function showResults() {
           ${dateStr ? `<div class="results-date">Completed ${esc(dateStr)}</div>` : ''}
           <div class="results-header-actions">
             <a href="${esc(pdfUrl)}" target="_blank" rel="noopener" class="btn-gold">⬇ Download PDF</a>
-            <span class="email-note">A copy has been sent to your email</span>
+            <button type="button" id="email-report-btn" class="btn-gold">✉ Email me my report</button>
+            <span class="email-note" id="email-report-msg"></span>
           </div>
         </div>
       </div>
@@ -1848,9 +1850,61 @@ function showBuyModal({ productId, title, price }, data) {
   overlay.classList.add('open');
 }
 
+// Wire the "Email me my report" button. Reports real success and real failure:
+// the server returns 503 when no mailer is configured, and that is surfaced
+// rather than being dressed up as a successful send.
+function attachEmailReportButton(data) {
+  const btn = document.getElementById('email-report-btn');
+  const msg = document.getElementById('email-report-msg');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    const fd    = STATE.formData || {};
+    const email = fd.email;
+    const code  = (data && data.accessCode) || (STATE.reportData && STATE.reportData.accessCode);
+
+    if (!email || !code) {
+      if (msg) { msg.style.color = '#B45309'; msg.textContent = 'Missing your email or access code.'; }
+      return;
+    }
+
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+    if (msg) { msg.style.color = ''; msg.textContent = ''; }
+
+    try {
+      const res  = await fetch('/api/email-report', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email: email, accessCode: code }),
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (res.ok && body.ok) {
+        if (msg) { msg.style.color = '#166534'; msg.textContent = 'Sent to ' + email; }
+        btn.textContent = 'Sent';
+        return;
+      }
+      if (msg) {
+        msg.style.color = '#B45309';
+        msg.textContent = body.error || 'Could not send the report. Please try again.';
+      }
+    } catch (e) {
+      if (msg) { msg.style.color = '#B45309'; msg.textContent = 'Network error, nothing was sent.'; }
+    } finally {
+      if (btn.textContent === 'Sending...') btn.textContent = original;
+      btn.disabled = false;
+    }
+  });
+}
+
 function initMabonxSection(data) {
   // Wire buy buttons
   attachBuyButtons(data);
+
+  // Wire the email-a-copy button
+  attachEmailReportButton(data);
 
   // Modal cancel
   const cancelBtn = document.getElementById('modal-cancel-btn');
