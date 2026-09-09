@@ -141,7 +141,11 @@ async function generateReport({ productId, personA, personB, discProfile, custom
   // 4. Build payload and call /report/generate
   const payload = { product_id: productId, person_a: personA };
   if (personB)     payload.person_b     = personB;
+  // Every Mabonx report synthesizes three layers, so the behavioural and
+  // astrological data travel with every product, not just career_edge.
   if (discProfile) payload.disc_profile = discProfile;
+  if (personA && personA.astrology)  payload.astrology  = personA.astrology;
+  if (personA && personA.assessment) payload.assessment = personA.assessment;
 
   const reportRes = await httpsPost(
     `${FIREBASE_FUNCTIONS_URL}/report/generate`,

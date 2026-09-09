@@ -12,6 +12,7 @@ const { DISCLAIMER } = require("./src/report");
 const { runAssessment } = require("./src/pipeline");
 const { generateReport } = require("./src/firebase-report");
 const { sendReportEmails, sendPurchaseEmail } = require("./src/delivery");
+const { computeAstrology } = require("./src/astrology");
 const GEO = require("./src/geo");
 const store = require("./src/store");
 
@@ -168,8 +169,28 @@ async function fulfillOrder(order) {
     const fullName = override.full_name ||
       (assessment ? [assessment.firstName, assessment.lastName].filter(Boolean).join(" ") : "");
     const birthdate = override.birthdate || (assessment && assessment.birthday) || null;
+    // Attach the behavioural and astrological layers so the report can
+    // synthesize all three systems rather than leaning on numerology alone.
+    let astro = null;
+    if (birthdate) {
+      try {
+        astro = computeAstrology({ birthday: birthdate, birthplace: null });
+      } catch (e) {
+        console.error("[fulfill] astrology unavailable:", e.message);
+      }
+    }
+
     const personA = (fullName && birthdate)
-      ? { full_name: fullName, birthdate }
+      ? {
+          full_name: fullName,
+          birthdate,
+          astrology: astro,
+          assessment: assessment ? {
+            archetype:   assessment.archetype || null,
+            disc_scores: assessment.discScores || null,
+            traits:      assessment.traits || null,
+          } : null,
+        }
       : null;
 
     if (!personA) {
@@ -180,9 +201,8 @@ async function fulfillOrder(order) {
       continue;
     }
 
-    const discProfile = (assessment && productId === "career_edge")
-      ? assessment.discScores || null
-      : null;
+    // The behavioural layer belongs in every report, not only career_edge.
+    const discProfile = (assessment && assessment.discScores) || null;
 
     let generated = null;
     try {
