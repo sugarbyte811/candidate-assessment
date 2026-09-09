@@ -11,10 +11,12 @@
 //     deterministic templates (graceful, zero-cost fallback).
 
 const DISCLAIMER =
-  "This report is inspired by established personality frameworks. It is not affiliated " +
-  "with, endorsed by, or a substitute for the official MBTI\u00ae, DISC, or Predictive Index\u00ae " +
-  "assessments. Astrology and numerology sections are for interpretive context only. " +
-  "This report is informational and should not be the sole basis for any employment decision.";
+  "This Mabonx report combines behavioral assessment results with numerology and astrology " +
+  "to provide a multidimensional view of an individual's natural strengths, motivations, " +
+  "communication style, work preferences, and potential career alignment. The insights are " +
+  "designed to support deeper self-awareness and more informed talent conversations. Results " +
+  "should be considered alongside experience, qualifications, performance, interviews, and " +
+  "other relevant information when used in a professional setting.";
 
 const band = (v) => (v >= 66 ? "High" : v <= 33 ? "Low" : "Moderate");
 

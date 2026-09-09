@@ -123,8 +123,14 @@ function paintBackground(doc) {
 
 function startContentPage(doc) {
   doc.addPage();
-  paintBackground(doc);
   doc.y = CONTENT_START;
+}
+
+// pdfkit inserts its own pages when text overflows, and those never ran through
+// startContentPage, so they came out white with near-invisible light text.
+// Painting on the pageAdded event covers every page however it was created.
+function autoPaintPages(doc) {
+  doc.on("pageAdded", () => paintBackground(doc));
 }
 
 // ---- Main PDF renderer -----------------------------------------------------
@@ -160,6 +166,7 @@ async function renderPdf(report, outPath) {
     // continuation pages the flowing content needed.
     const doc    = new PDFDocument({ size: "LETTER", margin: MARGIN, autoFirstPage: true, bufferPages: true });
     const stream = fs.createWriteStream(outPath);
+    autoPaintPages(doc);
     doc.pipe(stream);
 
     // ========================================================
@@ -285,10 +292,9 @@ async function renderPdf(report, outPath) {
     // ========================================================
     if (!isBlank(report.disclaimer)) {
       doc.addPage();
-      paintBackground(doc);
 
       doc.font("Helvetica-Bold").fontSize(10).fillColor(MUTED)
-        .text("METHODOLOGY & DISCLAIMER", MARGIN, MARGIN + 24, {
+        .text("ABOUT THIS REPORT", MARGIN, MARGIN + 24, {
           width: CONTENT_W, align: "center", characterSpacing: 1.5,
         });
 
