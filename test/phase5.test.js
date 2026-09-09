@@ -47,7 +47,7 @@ check("report never claims official MBTI/PI branding", () => {
   const r = renderReport(profile);
   const blob = JSON.stringify(r);
   assert.ok(!/Myers-Briggs Type Indicator/.test(blob));
-  assert.ok(/not affiliated/i.test(r.disclaimer));
+  assert.ok(/Mabonx report combines/i.test(r.disclaimer));
 });
 
 check("astrology page gives a behavioral read, not a planet list", () => {

@@ -71,7 +71,7 @@ const TMP = path.join(__dirname, ".tmp6");
   await check("report has all 4 pages and the legal disclaimer", async () => {
     for (let i = 1; i <= 4; i++) assert.ok(first.report.pages[i].title);
     assert.ok(!Object.values(first.report.pages).some((p) => p.title === "Personality Assessment"));
-    assert.ok(/not affiliated/i.test(first.report.disclaimer));
+    assert.ok(/Mabonx report combines/i.test(first.report.disclaimer));
   });
 
   await check("missing optional data still completes the pipeline", async () => {
