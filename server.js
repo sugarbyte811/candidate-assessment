@@ -444,6 +444,7 @@ const server = http.createServer(async (req, res) => {
       const clientId = process.env.SHOPIFY_CLIENT_ID || "fe5bbe166ca01355733a0bb2ac7eec08";
       const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
       let tok = process.env.SHOPIFY_ADMIN_API_TOKEN;
+      const diag = { hasStoredToken: !!tok, hasClientSecret: !!clientSecret, mintStatus: null, mintPrefix: null };
       try {
         if (clientSecret) {
           const mint = await fetch(`https://${shop}/admin/oauth/access_token`, {
@@ -451,16 +452,19 @@ const server = http.createServer(async (req, res) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
           });
+          diag.mintStatus = mint.status;
           if (mint.ok) {
             const j = await mint.json();
-            if (j.access_token) tok = j.access_token;
+            if (j.access_token) { tok = j.access_token; diag.mintPrefix = tok.slice(0, 6); }
+          } else {
+            diag.mintBody = (await mint.text()).slice(0, 200);
           }
         }
-        if (!tok) return send(res, 503, { error: "No SHOPIFY_ADMIN_API_TOKEN and mint failed." });
+        if (!tok) return send(res, 503, { error: "No SHOPIFY_ADMIN_API_TOKEN and mint failed.", diag });
         const r = await fetch(`https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&financial_status=paid`, {
           headers: { "X-Shopify-Access-Token": tok, "Content-Type": "application/json" },
         });
-        if (!r.ok) return send(res, 502, { error: `Shopify ${r.status}: ${await r.text()}` });
+        if (!r.ok) return send(res, 502, { error: `Shopify ${r.status}: ${await r.text()}`, diag });
         const data = await r.json();
         const orders = (data.orders || []).map(o => ({
           name: o.name,
