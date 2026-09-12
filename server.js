@@ -441,9 +441,22 @@ const server = http.createServer(async (req, res) => {
       if (!expected) return send(res, 503, { error: "ADMIN_TOKEN is not configured on this server." });
       if ((req.headers["x-admin-token"] || "") !== expected) return send(res, 403, { error: "Forbidden" });
       const shop = process.env.SHOPIFY_SHOP || "pznf0k-9p.myshopify.com";
-      const tok = process.env.SHOPIFY_ADMIN_API_TOKEN;
-      if (!tok) return send(res, 503, { error: "SHOPIFY_ADMIN_API_TOKEN is not configured on this server." });
+      const clientId = process.env.SHOPIFY_CLIENT_ID || "fe5bbe166ca01355733a0bb2ac7eec08";
+      const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
+      let tok = process.env.SHOPIFY_ADMIN_API_TOKEN;
       try {
+        if (clientSecret) {
+          const mint = await fetch(`https://${shop}/admin/oauth/access_token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: "client_credentials" }),
+          });
+          if (mint.ok) {
+            const j = await mint.json();
+            if (j.access_token) tok = j.access_token;
+          }
+        }
+        if (!tok) return send(res, 503, { error: "No SHOPIFY_ADMIN_API_TOKEN and mint failed." });
         const r = await fetch(`https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&financial_status=paid`, {
           headers: { "X-Shopify-Access-Token": tok, "Content-Type": "application/json" },
         });
