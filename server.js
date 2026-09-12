@@ -433,6 +433,39 @@ const server = http.createServer(async (req, res) => {
       return; // response already sent
     }
 
+    // ── List paid Shopify orders (admin) ───────────────────────────────────
+    // Protected by ADMIN_TOKEN. Uses SHOPIFY_ADMIN_API_TOKEN + SHOPIFY_SHOP env.
+    // Returns lean per-order records so we can find undelivered reports.
+    if (url.pathname === "/api/admin/list-paid-orders" && req.method === "GET") {
+      const expected = process.env.ADMIN_TOKEN;
+      if (!expected) return send(res, 503, { error: "ADMIN_TOKEN is not configured on this server." });
+      if ((req.headers["x-admin-token"] || "") !== expected) return send(res, 403, { error: "Forbidden" });
+      const shop = process.env.SHOPIFY_SHOP || "pznf0k-9p.myshopify.com";
+      const tok = process.env.SHOPIFY_ADMIN_API_TOKEN;
+      if (!tok) return send(res, 503, { error: "SHOPIFY_ADMIN_API_TOKEN is not configured on this server." });
+      try {
+        const r = await fetch(`https://${shop}/admin/api/2024-10/orders.json?status=any&limit=250&financial_status=paid`, {
+          headers: { "X-Shopify-Access-Token": tok, "Content-Type": "application/json" },
+        });
+        if (!r.ok) return send(res, 502, { error: `Shopify ${r.status}: ${await r.text()}` });
+        const data = await r.json();
+        const orders = (data.orders || []).map(o => ({
+          name: o.name,
+          id: o.id,
+          created_at: o.created_at,
+          email: o.email || o.contact_email || null,
+          financial_status: o.financial_status,
+          fulfillment_status: o.fulfillment_status,
+          line_items: (o.line_items || []).map(li => ({ title: li.title, variant_id: String(li.variant_id) })),
+          note_attributes: Object.fromEntries((o.note_attributes || []).map(a => [a.name, a.value])),
+          tags: o.tags,
+        }));
+        return send(res, 200, { count: orders.length, orders });
+      } catch (e) {
+        return send(res, 500, { error: e.message });
+      }
+    }
+
     // ── Re-deliver an order that failed to reach the buyer ─────────────────
     // Protected by ADMIN_TOKEN. Accepts the same order shape Shopify sends, so
     // a purchase that fell through can be replayed without a new checkout.
