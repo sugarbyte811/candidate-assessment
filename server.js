@@ -216,7 +216,20 @@ async function fulfillOrder(order) {
       console.error(`[fulfill] generation failed for ${productId}:`, e.message);
     }
 
-    // Deliver whatever we have. A generation failure must not also mean silence.
+    // A report only exists if generation actually produced a downloadUrl or
+    // there's a local PDF on disk. Sending "your report is ready" without
+    // either of those means an empty email that still gets marked
+    // "delivered" — a customer pays, gets nothing, and we think it's fine.
+    // Fail loudly and visibly instead so a failed order can be found and
+    // resent, per the non-negotiable fulfillment requirement.
+    const hasDeliverable = !!(generated && generated.downloadUrl) || !!(pdfPath && fs.existsSync(pdfPath));
+    if (!hasDeliverable) {
+      entry.status = `failed: no report to deliver${entry.generateError ? ` (${entry.generateError})` : ""}`;
+      console.error(`[fulfill] ${productId} -> ${customerEmail}: ${entry.status}`);
+      outcome.items.push(entry);
+      continue;
+    }
+
     try {
       const mail = await sendPurchaseEmail({
         to: customerEmail,
