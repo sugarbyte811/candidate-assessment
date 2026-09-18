@@ -513,6 +513,30 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // ── Correct a stored assessment record (e.g. an incomplete birth name) ──
+    // Merge-only: reads the existing record and shallow-merges `patch` in, so
+    // a name correction can never clobber the person's actual answers/traits.
+    // Protected by ADMIN_TOKEN, same as /api/admin/fulfill.
+    if (url.pathname === "/api/admin/patch-assessment" && req.method === "POST") {
+      const expected = process.env.ADMIN_TOKEN;
+      if (!expected) return send(res, 503, { error: "ADMIN_TOKEN is not configured on this server." });
+      if ((req.headers["x-admin-token"] || "") !== expected) return send(res, 403, { error: "Forbidden" });
+
+      const body = JSON.parse(await readBody(req) || "{}");
+      const { email, patch } = body;
+      if (!email || !patch || typeof patch !== "object") {
+        return send(res, 400, { error: "email and patch object required" });
+      }
+      const key = email.toLowerCase();
+      const existing = await store.getAssessmentByEmail(key);
+      if (!existing) return send(res, 404, { error: "no stored assessment for that email" });
+
+      const before = { firstName: existing.firstName, lastName: existing.lastName };
+      const merged = { ...existing, ...patch, patchedAt: new Date().toISOString() };
+      await store.saveAssessmentByEmail(key, merged);
+      return send(res, 200, { ok: true, before, after: { firstName: merged.firstName, lastName: merged.lastName } });
+    }
+
     // ── Partner invite ───────────────────────────────────────────────────────
     if (url.pathname === "/api/partner-invite" && req.method === "POST") {
       const body = JSON.parse(await readBody(req) || "{}");
