@@ -180,6 +180,13 @@ async function fulfillOrder(order) {
       }
     }
 
+    // The full Mabonx trait set (16 behavioral dimensions, not just the
+    // 4-letter DISC rollup) lives at assessment.full.scores.traits in the
+    // stored record, not assessment.traits directly — this was previously
+    // always undefined, silently limiting every report's personality layer
+    // to DISC scores alone regardless of what the report prompt asked for.
+    const traitsOf = (a) => (a && ((a.full && a.full.scores && a.full.scores.traits) || a.traits)) || null;
+
     const personA = (fullName && birthdate)
       ? {
           full_name: fullName,
@@ -188,7 +195,7 @@ async function fulfillOrder(order) {
           assessment: assessment ? {
             archetype:   assessment.archetype || null,
             disc_scores: assessment.discScores || null,
-            traits:      assessment.traits || null,
+            traits:      traitsOf(assessment),
           } : null,
         }
       : null;
@@ -204,9 +211,43 @@ async function fulfillOrder(order) {
     // The behavioural layer belongs in every report, not only career_edge.
     const discProfile = (assessment && assessment.discScores) || null;
 
+    // ── Second person, for compatibility_deep_dive ("Business Partner") ───
+    // Not derivable from the order/line items — either passed pre-resolved
+    // as order.person_b.{full_name,birthdate}, or looked up the same way
+    // person A is, via order.person_b.email against the stored assessments.
+    let personB = null;
+    if (order.person_b) {
+      const bOverride = order.person_b;
+      const bAssessment = bOverride.email
+        ? await store.getAssessmentByEmail(String(bOverride.email).toLowerCase())
+        : null;
+      const bFullName = bOverride.full_name ||
+        (bAssessment ? [bAssessment.firstName, bAssessment.lastName].filter(Boolean).join(" ") : "");
+      const bBirthdate = bOverride.birthdate || (bAssessment && bAssessment.birthday) || null;
+      let bAstro = null;
+      if (bBirthdate) {
+        try { bAstro = computeAstrology({ birthday: bBirthdate, birthplace: null }); }
+        catch (e) { console.error("[fulfill] astrology unavailable for person_b:", e.message); }
+      }
+      if (bFullName && bBirthdate) {
+        personB = {
+          full_name: bFullName,
+          birthdate: bBirthdate,
+          astrology: bAstro,
+          assessment: bAssessment ? {
+            archetype:   bAssessment.archetype || null,
+            disc_scores: bAssessment.discScores || null,
+            traits:      traitsOf(bAssessment),
+          } : null,
+        };
+      } else {
+        console.error("[fulfill] cannot build person_b", JSON.stringify({ assessmentFound: !!bAssessment, bFullName, bBirthdate }));
+      }
+    }
+
     let generated = null;
     try {
-      generated = await generateReport({ productId, personA, discProfile, customerEmail });
+      generated = await generateReport({ productId, personA, personB, discProfile, customerEmail });
       entry.generated = generated
         ? { reportId: generated.reportId, title: generated.title, downloadUrl: generated.downloadUrl }
         : null;
