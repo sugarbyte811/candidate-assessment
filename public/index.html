@@ -1186,6 +1186,19 @@ function showPersonal() {
         </div>
       </div>
     </div>
+
+    <!-- Accuracy reminder modal -->
+    <div id="accuracy-modal-overlay" class="modal-overlay">
+      <div class="buy-modal">
+        <h3 style="margin-bottom:6px;">One thing before you start</h3>
+        <p class="buy-modal-sub">Your full birth name and date of birth are what make the numerology part of your report accurate. Without them, that section of your report will be incomplete or approximate.</p>
+        <div class="buy-modal-detail" id="accuracy-modal-detail"></div>
+        <div class="buy-modal-actions">
+          <button class="btn-navy" id="accuracy-modal-back">Go back and add it</button>
+          <button class="btn-ghost" id="accuracy-modal-continue">Continue without it</button>
+        </div>
+      </div>
+    </div>
   `);
 
   // Wire city datalist
@@ -1218,6 +1231,24 @@ function showPersonal() {
     if (!consent)                                   { err.textContent = 'Please accept the consent statement to continue.'; return; }
 
     STATE.formData = { firstName: fn, lastName: ln, email: em, birthday: bd, birthName: bn, birthNameFirst: bnFirst, birthNameMiddle: bnMiddle, birthNameLast: bnLast, country, city, consent };
+
+    const missing = [];
+    if (!bd) missing.push('date of birth');
+    if (!bnFirst || !bnMiddle || !bnLast) missing.push('full birth name (first, middle, and last)');
+
+    if (missing.length) {
+      const overlay = document.getElementById('accuracy-modal-overlay');
+      document.getElementById('accuracy-modal-detail').innerHTML =
+        `<p>Missing: <strong>${esc(missing.join(' and '))}</strong>.</p>`;
+      overlay.classList.add('open');
+      document.getElementById('accuracy-modal-back').onclick = () => overlay.classList.remove('open');
+      document.getElementById('accuracy-modal-continue').onclick = () => {
+        overlay.classList.remove('open');
+        showSectionTransition(0);
+      };
+      return;
+    }
+
     showSectionTransition(0);
   };
 }
