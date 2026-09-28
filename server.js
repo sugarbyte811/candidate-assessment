@@ -165,9 +165,13 @@ async function fulfillOrder(order) {
 
     // The Pinnacle backend requires full_name and birthdate as YYYY-MM-DD.
     // Sending `name` produced a 400 on every single order.
+    // Numerology needs the full LEGAL birth name, not the casual one - prefer
+    // assessment.birthName (the dedicated "name on birth certificate" field)
+    // over firstName+lastName, which is often a nickname or missing a
+    // middle name even when the person filled birthName in correctly.
     const override = order.person_a || {};
     const fullName = override.full_name ||
-      (assessment ? [assessment.firstName, assessment.lastName].filter(Boolean).join(" ") : "");
+      (assessment ? (assessment.birthName || [assessment.firstName, assessment.lastName].filter(Boolean).join(" ")) : "");
     const birthdate = override.birthdate || (assessment && assessment.birthday) || null;
     // Attach the behavioural and astrological layers so the report can
     // synthesize all three systems rather than leaning on numerology alone.
@@ -222,7 +226,7 @@ async function fulfillOrder(order) {
         ? await store.getAssessmentByEmail(String(bOverride.email).toLowerCase())
         : null;
       const bFullName = bOverride.full_name ||
-        (bAssessment ? [bAssessment.firstName, bAssessment.lastName].filter(Boolean).join(" ") : "");
+        (bAssessment ? (bAssessment.birthName || [bAssessment.firstName, bAssessment.lastName].filter(Boolean).join(" ")) : "");
       const bBirthdate = bOverride.birthdate || (bAssessment && bAssessment.birthday) || null;
       let bAstro = null;
       if (bBirthdate) {
